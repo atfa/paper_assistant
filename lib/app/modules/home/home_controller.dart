@@ -14,6 +14,7 @@ class HomeController extends GetxController {
   final sourceText = ''.obs;
   final translatedText = ''.obs;
   final polishedText = ''.obs;
+  final polishedTranslation = ''.obs;
   final firstColumnWidth = 300.0.obs;
   final secondColumnWidth = 300.0.obs;
   final isPolishing = false.obs;
@@ -175,6 +176,20 @@ $textToPolish
       // 更新润色结果并确保UI刷新
       polishedText.value = response;
       print('润色完成，已更新UI');
+
+      // 自动将润色后的文本翻译成中文
+      try {
+        final translated = await _translationService.translate(
+          text: response,
+          source: 'en',
+          target: 'zh',
+        );
+        polishedTranslation.value = translated;
+        print('润色文本翻译完成');
+      } catch (e) {
+        print('Polish translation error: $e');
+        polishedTranslation.value = '翻译失败，请重试';
+      }
     } catch (e) {
       print('Polish error: $e');
       Get.snackbar(

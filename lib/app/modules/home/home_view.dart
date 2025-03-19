@@ -76,6 +76,29 @@ class HomeView extends GetView<HomeController> {
                             onChanged: (value) => controller.sourceText.value = value,
                           ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: Theme.of(context).dividerColor.withOpacity(0.5),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Obx(() => Text(
+                                    '${controller.sourceText.value.length}/1000',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: controller.sourceText.value.length > 1000
+                                              ? Colors.red
+                                              : Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                  )),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -158,13 +181,42 @@ class HomeView extends GetView<HomeController> {
                           () => controller.copyToClipboard(controller.polishedText.value),
                         ),
                         Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            child: SelectableText(
-                              controller.polishedText.value.isEmpty ? '润色结果将在这里显示...' : controller.polishedText.value,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
+                          child: Column(
+                            children: [
+                              // 上半部分：英文润色结果
+                              Expanded(
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Theme.of(context).dividerColor.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ),
+                                  child: SelectableText(
+                                    controller.polishedText.value.isEmpty
+                                        ? '润色结果将在这里显示...'
+                                        : controller.polishedText.value,
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ),
+                              ),
+                              // 下半部分：中文翻译
+                              Expanded(
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  child: SelectableText(
+                                    controller.polishedTranslation.value.isEmpty
+                                        ? '中文翻译将在这里显示...'
+                                        : controller.polishedTranslation.value,
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
