@@ -89,9 +89,9 @@ class HomeView extends GetView<HomeController> {
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               Obx(() => Text(
-                                    '${controller.sourceText.value.length}/1000',
+                                    '${controller.sourceText.value.length}/5000',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: controller.sourceText.value.length > 1000
+                                          color: controller.sourceText.value.length > 5000
                                               ? Colors.red
                                               : Theme.of(context).colorScheme.onSurface,
                                         ),

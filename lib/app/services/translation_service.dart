@@ -43,6 +43,7 @@ class TranslationService extends GetxService {
           'q': text,
           'source': source,
           'target': target,
+          'format': 'text',
         },
       );
 
