@@ -136,41 +136,41 @@ class HomeView extends GetView<HomeController> {
                   ),
                 )),
             // 第三列：润色结果
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildColumnHeader(
-                      context,
-                      const Text('润色结果'),
-                      () => controller.copyToClipboard(controller.polishedText.value),
-                    ),
-                    Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        child: SelectableText(
-                          controller.polishedText.value.isEmpty ? '润色结果将在这里显示...' : controller.polishedText.value,
-                          style: Theme.of(context).textTheme.bodyLarge,
+            Obx(() => Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ),
+                    child: Column(
+                      children: [
+                        _buildColumnHeader(
+                          context,
+                          const Text('润色结果'),
+                          () => controller.copyToClipboard(controller.polishedText.value),
+                        ),
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            child: SelectableText(
+                              controller.polishedText.value.isEmpty ? '润色结果将在这里显示...' : controller.polishedText.value,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
           ],
         ),
       ),

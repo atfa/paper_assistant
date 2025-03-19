@@ -173,11 +173,8 @@ $textToPolish
       print('收到润色结果，长度: ${response.length}');
 
       // 更新润色结果并确保UI刷新
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        polishedText.value = response;
-        update(); // 强制刷新UI
-        print('润色完成，已更新UI');
-      });
+      polishedText.value = response;
+      print('润色完成，已更新UI');
     } catch (e) {
       print('Polish error: $e');
       Get.snackbar(
