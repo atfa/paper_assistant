@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/resizable_column.dart';
@@ -115,6 +114,7 @@ class HomeView extends GetView<HomeController> {
                                 ),
                               )),
                           () => controller.copyToClipboard(controller.translatedText.value),
+                          isTranslationColumn: true,
                         ),
                         Expanded(
                           child: TextField(
@@ -177,7 +177,8 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
-  Widget _buildColumnHeader(BuildContext context, Widget title, VoidCallback onCopy) {
+  Widget _buildColumnHeader(BuildContext context, Widget title, VoidCallback onCopy,
+      {bool isTranslationColumn = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -191,10 +192,28 @@ class HomeView extends GetView<HomeController> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           title,
-          IconButton(
-            icon: const Icon(Icons.copy),
-            onPressed: onCopy,
-            tooltip: '复制',
+          Row(
+            children: [
+              // 润色按钮 - 只在第二列显示
+              if (isTranslationColumn)
+                Obx(() => IconButton(
+                      icon: controller.isPolishing.value
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.auto_fix_high),
+                      onPressed: controller.isPolishing.value ? null : controller.polishText,
+                      tooltip: '润色',
+                    )),
+              // 复制按钮
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: onCopy,
+                tooltip: '复制',
+              ),
+            ],
           ),
         ],
       ),

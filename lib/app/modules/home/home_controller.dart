@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
 import '../../services/translation_service.dart';
+import '../../services/ai_service.dart';
 
 class HomeController extends GetxController {
   final TranslationService _translationService = Get.find<TranslationService>();
+  final AIService _aiService = Get.find<AIService>();
 
   final isChineseToEnglish = true.obs;
   final sourceText = ''.obs;
@@ -15,6 +16,7 @@ class HomeController extends GetxController {
   final polishedText = ''.obs;
   final firstColumnWidth = 300.0.obs;
   final secondColumnWidth = 300.0.obs;
+  final isPolishing = false.obs;
 
   late final TextEditingController sourceController;
   late final TextEditingController translatedController;
@@ -130,5 +132,62 @@ class HomeController extends GetxController {
       '文本已复制到剪贴板',
       snackPosition: SnackPosition.BOTTOM,
     );
+  }
+
+  Future<void> polishText() async {
+    if (isPolishing.value) return;
+
+    try {
+      isPolishing.value = true;
+
+      // 根据翻译方向选择要润色的文本
+      final textToPolish = isChineseToEnglish.value
+          ? translatedText.value // 中译英时润色第二列
+          : sourceText.value; // 英译中时润色第一列
+
+      if (textToPolish.isEmpty) {
+        Get.snackbar(
+          '提示',
+          '请先输入或翻译需要润色的文本',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      print('开始润色文本...');
+      print('润色文本长度: ${textToPolish.length}');
+
+      // 构建提示词
+      final prompt = '''
+Please polish the following English text to meet doctoral-level academic writing standards. 
+Make it more formal, precise, and suitable for academic papers. 
+Maintain the original meaning while improving the language quality.
+Do not output your thinking process, analysis process, please only output polished sentences:
+
+$textToPolish
+''';
+
+      // 调用AI服务进行润色
+      print('调用AI服务进行润色...');
+      final response = await _aiService.generateText(prompt);
+      print('收到润色结果，长度: ${response.length}');
+
+      // 更新润色结果并确保UI刷新
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        polishedText.value = response;
+        update(); // 强制刷新UI
+        print('润色完成，已更新UI');
+      });
+    } catch (e) {
+      print('Polish error: $e');
+      Get.snackbar(
+        '润色失败',
+        '请检查网络连接和AI服务配置: ${e.toString()}',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 5),
+      );
+    } finally {
+      isPolishing.value = false;
+    }
   }
 }

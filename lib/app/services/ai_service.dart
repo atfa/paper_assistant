@@ -228,6 +228,10 @@ class AIService extends GetxService {
     }
 
     try {
+      print('Sending request to AI service...');
+      print('Base URL: ${_baseUrl.value}');
+      print('Model: ${_model.value}');
+
       final response = await _dio.post(
         '${_baseUrl.value}/chat/completions',
         data: {
@@ -238,9 +242,28 @@ class AIService extends GetxService {
         },
       );
 
-      return response.data['choices'][0]['message']['content'];
+      print('Response received: ${response.statusCode}');
+      print('Response data: ${response.data}');
+
+      if (response.data == null ||
+          response.data['choices'] == null ||
+          response.data['choices'].isEmpty ||
+          response.data['choices'][0]['message'] == null) {
+        print('Invalid response format: ${response.data}');
+        return 'Error: Received invalid response format from AI service';
+      }
+
+      final content = response.data['choices'][0]['message']['content'];
+      print('Content extracted: ${content.substring(0, content.length > 100 ? 100 : content.length)}...');
+      return content;
     } on DioException catch (e) {
+      print('DioException in generateText: ${e.message}');
+      print('DioException type: ${e.type}');
+      print('DioException response: ${e.response?.data}');
       throw Exception('Failed to generate text: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      print('Unexpected error in generateText: $e');
+      throw Exception('Unexpected error: $e');
     }
   }
 
