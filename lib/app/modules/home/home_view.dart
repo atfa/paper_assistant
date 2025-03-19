@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/resizable_column.dart';
 import '../../routes/app_pages.dart';
 import 'home_controller.dart';
@@ -10,120 +11,180 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
+    // 计算屏幕宽度和列宽
+    final screenWidth = MediaQuery.of(context).size.width;
+    final columnWidth = screenWidth / 3;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Paper Assistant'),
         actions: [
+          IconButton(
+            icon: const FaIcon(FontAwesomeIcons.ruler, size: 20),
+            onPressed: controller.resetLayout,
+            tooltip: '重置布局',
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => Get.toNamed(Routes.SETTINGS),
           ),
         ],
       ),
-      body: Row(
-        children: [
-          // 第一列：输入原文
-          ResizableColumn(
-            initialWidth: 300,
-            minWidth: 200,
-            maxWidth: 600,
-            onResize: () {},
-            child: Column(
-              children: [
-                _buildColumnHeader(
-                  context,
-                  const Text('输入原文'),
-                  () => controller.copyToClipboard(controller.sourceText.value),
-                ),
-                Expanded(
-                  child: TextField(
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    controller: controller.sourceController,
-                    decoration: const InputDecoration(
-                      hintText: '请输入原文...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(8),
-                    ),
-                    onChanged: (value) => controller.sourceText.value = value,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 第二列：翻译
-          ResizableColumn(
-            initialWidth: 300,
-            minWidth: 200,
-            maxWidth: 600,
-            onResize: () {},
-            child: Column(
-              children: [
-                _buildColumnHeader(
-                  context,
-                  Obx(() => TextButton(
-                        onPressed: controller.toggleTranslationDirection,
-                        child: Text(
-                          controller.isChineseToEnglish.value ? '中->英' : '英->中',
-                        ),
-                      )),
-                  () => controller.copyToClipboard(controller.translatedText.value),
-                ),
-                Expanded(
-                  child: TextField(
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    controller: controller.translatedController,
-                    decoration: const InputDecoration(
-                      hintText: '翻译结果...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(8),
-                    ),
-                    onChanged: (value) => controller.translatedText.value = value,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // 第三列：润色结果
-          Expanded(
-            child: Column(
-              children: [
-                _buildColumnHeader(
-                  context,
-                  const Text('润色结果'),
-                  () => controller.copyToClipboard(controller.polishedText.value),
-                ),
-                Expanded(
+      body: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.background,
+        ),
+        child: Row(
+          children: [
+            // 第一列：输入原文
+            Obx(() => ResizableColumn(
+                  initialWidth: controller.firstColumnWidth.value,
+                  minWidth: columnWidth * 0.5,
+                  maxWidth: columnWidth * 1.5,
+                  onResize: (width) => controller.updateFirstColumnWidth(width),
                   child: Container(
-                    width: double.infinity,
+                    margin: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).dividerColor),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    padding: const EdgeInsets.all(8),
-                    child: SelectableText(
-                      controller.polishedText.value.isEmpty ? '润色结果将在这里显示...' : controller.polishedText.value,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                    child: Column(
+                      children: [
+                        _buildColumnHeader(
+                          context,
+                          const Text('输入原文'),
+                          () => controller.copyToClipboard(controller.sourceText.value),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            controller: controller.sourceController,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                            decoration: const InputDecoration(
+                              hintText: '请输入原文...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.all(16),
+                            ),
+                            onChanged: (value) => controller.sourceText.value = value,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                )),
+            // 第二列：翻译
+            Obx(() => ResizableColumn(
+                  initialWidth: controller.secondColumnWidth.value,
+                  minWidth: columnWidth * 0.5,
+                  maxWidth: columnWidth * 1.5,
+                  onResize: (width) => controller.updateSecondColumnWidth(width),
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildColumnHeader(
+                          context,
+                          Obx(() => TextButton.icon(
+                                onPressed: controller.toggleTranslationDirection,
+                                icon: Icon(
+                                  controller.isChineseToEnglish.value ? Icons.translate : Icons.language,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  controller.isChineseToEnglish.value ? '中->英' : '英->中',
+                                ),
+                              )),
+                          () => controller.copyToClipboard(controller.translatedText.value),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            controller: controller.translatedController,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                            decoration: const InputDecoration(
+                              hintText: '翻译结果...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.all(16),
+                            ),
+                            onChanged: (value) => controller.translatedText.value = value,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
+            // 第三列：润色结果
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
+                child: Column(
+                  children: [
+                    _buildColumnHeader(
+                      context,
+                      const Text('润色结果'),
+                      () => controller.copyToClipboard(controller.polishedText.value),
+                    ),
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        child: SelectableText(
+                          controller.polishedText.value.isEmpty ? '润色结果将在这里显示...' : controller.polishedText.value,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildColumnHeader(BuildContext context, Widget title, VoidCallback onCopy) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Theme.of(context).dividerColor),
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.5),
+          ),
         ),
       ),
       child: Row(

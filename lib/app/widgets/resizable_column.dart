@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
 class ResizableColumn extends StatefulWidget {
-  final Widget child;
   final double initialWidth;
   final double minWidth;
   final double maxWidth;
-  final VoidCallback onResize;
+  final Widget child;
+  final ValueChanged<double> onResize;
 
   const ResizableColumn({
     super.key,
-    required this.child,
     required this.initialWidth,
     required this.minWidth,
     required this.maxWidth,
+    required this.child,
     required this.onResize,
   });
 
@@ -23,8 +23,7 @@ class ResizableColumn extends StatefulWidget {
 class _ResizableColumnState extends State<ResizableColumn> {
   late double width;
   bool isDragging = false;
-  double dragStartX = 0;
-  double dragStartWidth = 0;
+  bool isHovered = false;
 
   @override
   void initState() {
@@ -32,30 +31,22 @@ class _ResizableColumnState extends State<ResizableColumn> {
     width = widget.initialWidth;
   }
 
-  void _startDragging(DragStartDetails details) {
-    setState(() {
-      isDragging = true;
-      dragStartX = details.globalPosition.dx;
-      dragStartWidth = width;
-    });
+  @override
+  void didUpdateWidget(ResizableColumn oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialWidth != widget.initialWidth) {
+      width = widget.initialWidth;
+    }
   }
 
-  void _drag(DragUpdateDetails details) {
-    if (!isDragging) return;
-
-    final delta = details.globalPosition.dx - dragStartX;
-    final newWidth = dragStartWidth + delta;
-
-    setState(() {
-      width = newWidth.clamp(widget.minWidth, widget.maxWidth);
-    });
-    widget.onResize();
-  }
-
-  void _endDragging(DragEndDetails details) {
-    setState(() {
-      isDragging = false;
-    });
+  void _handleDrag(DragUpdateDetails details) {
+    final newWidth = width + details.delta.dx;
+    if (newWidth >= widget.minWidth && newWidth <= widget.maxWidth) {
+      setState(() {
+        width = newWidth;
+      });
+      widget.onResize(width);
+    }
   }
 
   @override
@@ -66,25 +57,32 @@ class _ResizableColumnState extends State<ResizableColumn> {
         children: [
           widget.child,
           Positioned(
-            right: 0,
+            right: -12,
             top: 0,
             bottom: 0,
             child: MouseRegion(
               cursor: SystemMouseCursors.resizeColumn,
+              onEnter: (_) => setState(() => isHovered = true),
+              onExit: (_) => setState(() => isHovered = false),
               child: GestureDetector(
-                onPanStart: _startDragging,
-                onPanUpdate: _drag,
-                onPanEnd: _endDragging,
+                onHorizontalDragStart: (_) => setState(() => isDragging = true),
+                onHorizontalDragUpdate: _handleDrag,
+                onHorizontalDragEnd: (_) => setState(() => isDragging = false),
                 child: Container(
-                  width: 8,
+                  width: 24,
                   color: Colors.transparent,
                   child: Center(
-                    child: Container(
-                      width: 2,
-                      height: 24,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: isDragging ? 6 : (isHovered ? 4 : 3),
+                      height: double.infinity,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(1),
+                        color: isDragging
+                            ? Theme.of(context).colorScheme.primary
+                            : (isHovered
+                                ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                                : Theme.of(context).dividerColor),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
