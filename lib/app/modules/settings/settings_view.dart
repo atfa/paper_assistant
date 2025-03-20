@@ -77,6 +77,37 @@ class SettingsView extends GetView<SettingsController> {
                       },
                     )),
                 const SizedBox(height: 16),
+                // 显示当前选择的AI模型
+                Obx(() => controller.aiModel.isNotEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              '当前模型: ',
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                controller.aiModel,
+                                style: Theme.of(context).textTheme.titleSmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox()),
+                const SizedBox(height: 16),
                 Obx(() => controller.aiProvider == AIProvider.custom
                     ? Column(
                         children: [
