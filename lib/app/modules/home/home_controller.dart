@@ -850,7 +850,7 @@ $textToPolish
     }
   }
 
-  /// 处理在输入框中按下回车键创建新段落
+  /// 处理在输入框中按下回车键创建新句子，而不是直接创建新段落
   void handleEnterKeyPressed(int index, bool isSource) {
     if (isSource) {
       // 处理源文本输入框中的回车
@@ -862,10 +862,10 @@ $textToPolish
         TextEditingController controller = sourceSentenceControllers[index];
         int cursorPosition = controller.selection.baseOffset;
 
-        // 如果光标位置无效，则在末尾添加段落分隔符
+        // 如果光标位置无效，则在末尾添加新句子
         if (cursorPosition < 0 || cursorPosition >= currentText.length) {
-          // 在当前句子后面添加段落分隔符
-          _insertParagraphBreak(index, isSource);
+          // 在当前句子后面添加新句子
+          _insertNewSentence(index, isSource);
           return;
         }
 
@@ -876,19 +876,13 @@ $textToPolish
         // 更新当前句子内容为光标前的文本
         sourceSentenceControllers[index].text = beforeCursor;
 
-        // 在当前位置插入段落分隔符
+        // 在当前位置插入新句子
         List<String> newSentences = List.from(sourceSentences);
         List<TextEditingController> newControllers = List.from(sourceSentenceControllers);
 
-        // 在当前句子后添加段落分隔符
-        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
-        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
-
-        // 如果光标后还有文本，则在段落分隔符后创建新句子
-        if (afterCursor.isNotEmpty) {
-          newSentences.insert(index + 2, afterCursor);
-          newControllers.insert(index + 2, TextEditingController(text: afterCursor));
-        }
+        // 在当前句子后添加新句子，包含光标后内容
+        newSentences.insert(index + 1, afterCursor);
+        newControllers.insert(index + 1, TextEditingController(text: afterCursor));
 
         // 更新列表
         sourceSentences.value = newSentences;
@@ -907,10 +901,10 @@ $textToPolish
         TextEditingController controller = translatedSentenceControllers[index];
         int cursorPosition = controller.selection.baseOffset;
 
-        // 如果光标位置无效，则在末尾添加段落分隔符
+        // 如果光标位置无效，则在末尾添加新句子
         if (cursorPosition < 0 || cursorPosition >= currentText.length) {
-          // 在当前句子后面添加段落分隔符
-          _insertParagraphBreak(index, isSource);
+          // 在当前句子后面添加新句子
+          _insertNewSentence(index, isSource);
           return;
         }
 
@@ -921,19 +915,13 @@ $textToPolish
         // 更新当前句子内容为光标前的文本
         translatedSentenceControllers[index].text = beforeCursor;
 
-        // 在当前位置插入段落分隔符
+        // 在当前位置插入新句子
         List<String> newSentences = List.from(translatedSentences);
         List<TextEditingController> newControllers = List.from(translatedSentenceControllers);
 
-        // 在当前句子后添加段落分隔符
-        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
-        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
-
-        // 如果光标后还有文本，则在段落分隔符后创建新句子
-        if (afterCursor.isNotEmpty) {
-          newSentences.insert(index + 2, afterCursor);
-          newControllers.insert(index + 2, TextEditingController(text: afterCursor));
-        }
+        // 在当前句子后添加新句子，包含光标后内容
+        newSentences.insert(index + 1, afterCursor);
+        newControllers.insert(index + 1, TextEditingController(text: afterCursor));
 
         // 更新列表
         translatedSentences.value = newSentences;
@@ -945,8 +933,49 @@ $textToPolish
     }
   }
 
-  /// 在指定位置后插入段落分隔符
-  void _insertParagraphBreak(int index, bool isSource) {
+  /// 在指定位置后插入新句子
+  void _insertNewSentence(int index, bool isSource) {
+    if (isSource) {
+      // 在源文本中插入新句子
+      if (index >= 0 && index < sourceSentenceControllers.length) {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(sourceSentences);
+        List<TextEditingController> newControllers = List.from(sourceSentenceControllers);
+
+        // 插入空句子
+        newSentences.insert(index + 1, '');
+        newControllers.insert(index + 1, TextEditingController());
+
+        // 更新列表
+        sourceSentences.value = newSentences;
+        sourceSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateSourceTextFromSentences();
+      }
+    } else {
+      // 在翻译文本中插入新句子
+      if (index >= 0 && index < translatedSentenceControllers.length) {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(translatedSentences);
+        List<TextEditingController> newControllers = List.from(translatedSentenceControllers);
+
+        // 插入空句子
+        newSentences.insert(index + 1, '');
+        newControllers.insert(index + 1, TextEditingController());
+
+        // 更新列表
+        translatedSentences.value = newSentences;
+        translatedSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateTranslatedTextFromSentences();
+      }
+    }
+  }
+
+  /// 添加段落分隔符方法
+  void addParagraphBreak(int index, bool isSource) {
     if (isSource) {
       // 在源文本中插入段落分隔符
       if (index >= 0 && index < sourceSentenceControllers.length) {
@@ -975,6 +1004,53 @@ $textToPolish
         // 插入段落分隔符
         newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
         newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
+
+        // 更新列表
+        translatedSentences.value = newSentences;
+        translatedSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateTranslatedTextFromSentences();
+      }
+    }
+  }
+
+  /// 删除段落分隔符，合并段落
+  void removeParagraphBreak(int index, bool isSource) {
+    if (isSource) {
+      // 在源文本中删除段落分隔符
+      if (index >= 0 &&
+          index < sourceSentenceControllers.length &&
+          sourceSentenceControllers[index].text == '###NEW_PARAGRAPH###') {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(sourceSentences);
+        List<TextEditingController> newControllers = List.from(sourceSentenceControllers);
+
+        // 移除段落分隔符
+        newSentences.removeAt(index);
+        newControllers[index].dispose();
+        newControllers.removeAt(index);
+
+        // 更新列表
+        sourceSentences.value = newSentences;
+        sourceSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateSourceTextFromSentences();
+      }
+    } else {
+      // 在翻译文本中删除段落分隔符
+      if (index >= 0 &&
+          index < translatedSentenceControllers.length &&
+          translatedSentenceControllers[index].text == '###NEW_PARAGRAPH###') {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(translatedSentences);
+        List<TextEditingController> newControllers = List.from(translatedSentenceControllers);
+
+        // 移除段落分隔符
+        newSentences.removeAt(index);
+        newControllers[index].dispose();
+        newControllers.removeAt(index);
 
         // 更新列表
         translatedSentences.value = newSentences;

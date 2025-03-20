@@ -250,7 +250,7 @@ class HomeView extends GetView<HomeController> {
 
             // 处理段落分隔符
             if (text == '###NEW_PARAGRAPH###') {
-              return _buildParagraphDivider(context);
+              return _buildParagraphDivider(context, index: index, isSource: true);
             }
 
             return _buildSentenceInput(
@@ -277,7 +277,7 @@ class HomeView extends GetView<HomeController> {
 
             // 处理段落分隔符
             if (text == '###NEW_PARAGRAPH###') {
-              return _buildParagraphDivider(context);
+              return _buildParagraphDivider(context, index: index, isSource: false);
             }
 
             return _buildSentenceInput(
@@ -340,37 +340,64 @@ class HomeView extends GetView<HomeController> {
   }
 
   // 段落分隔符部件
-  Widget _buildParagraphDivider(BuildContext context) {
+  Widget _buildParagraphDivider(BuildContext context, {int index = -1, bool isSource = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
+      child: Stack(
         children: [
-          Row(
+          Column(
             children: [
-              Expanded(
-                child: Divider(
-                  color: Theme.of(context).dividerColor,
-                  thickness: 1,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  '新段落',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.secondary,
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: Theme.of(context).dividerColor,
+                      thickness: 1,
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: Divider(
-                  color: Theme.of(context).dividerColor,
-                  thickness: 1,
-                ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(
+                      '新段落',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: Theme.of(context).dividerColor,
+                      thickness: 1,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+          // 删除按钮
+          if (index >= 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: InkWell(
+                onTap: () {
+                  controller.removeParagraphBreak(index, isSource);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onError,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -386,7 +413,6 @@ class HomeView extends GetView<HomeController> {
     return Stack(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
@@ -398,33 +424,57 @@ class HomeView extends GetView<HomeController> {
               ),
             ],
           ),
-          child: RawKeyboardListener(
-            focusNode: FocusNode(),
-            onKey: (RawKeyEvent event) {
-              // 监听回车键事件
-              if (event is RawKeyDownEvent) {
-                if (event.logicalKey == LogicalKeyboardKey.enter) {
-                  bool isSource = controller.sourceSentenceControllers.contains(textController);
-                  controller.handleEnterKeyPressed(index, isSource);
-                }
-              }
-            },
-            child: TextField(
-              controller: textController,
-              maxLines: null,
-              decoration: InputDecoration(
-                hintText: '输入文本...',
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 恢复句子编号标签
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  '句子 ${index + 1}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
-              onChanged: onChanged,
-              // 不要设置onEditingComplete，让RawKeyboardListener处理回车键
-              // 设置文本输入动作
-              textInputAction: TextInputAction.done,
-            ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: RawKeyboardListener(
+                  focusNode: FocusNode(),
+                  onKey: (RawKeyEvent event) {
+                    // 监听回车键事件
+                    if (event is RawKeyDownEvent) {
+                      if (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                        bool isSource = controller.sourceSentenceControllers.contains(textController);
+                        controller.handleEnterKeyPressed(index, isSource);
+                      }
+                    }
+                  },
+                  child: TextField(
+                    controller: textController,
+                    maxLines: null,
+                    minLines: 2,
+                    decoration: InputDecoration(
+                      hintText: '输入文本...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: onChanged,
+                    // 设置文本输入动作
+                    textInputAction: TextInputAction.done,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        // 句子删除按钮
+        // 删除按钮
         Positioned(
           top: 0,
           right: 0,
@@ -434,7 +484,7 @@ class HomeView extends GetView<HomeController> {
               controller.clearSentenceInput(index, isSource);
             },
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.error.withOpacity(0.8),
                 borderRadius: const BorderRadius.only(
@@ -444,8 +494,34 @@ class HomeView extends GetView<HomeController> {
               ),
               child: Icon(
                 Icons.close,
-                size: 16,
+                size: 14,
                 color: Theme.of(context).colorScheme.onError,
+              ),
+            ),
+          ),
+        ),
+        // 添加新段落按钮
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: InkWell(
+            onTap: () {
+              bool isSource = controller.sourceSentenceControllers.contains(textController);
+              controller.addParagraphBreak(index, isSource);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                borderRadius: const BorderRadius.only(
+                  bottomRight: Radius.circular(8),
+                  topLeft: Radius.circular(8),
+                ),
+              ),
+              child: Icon(
+                Icons.format_line_spacing,
+                size: 14,
+                color: Theme.of(context).colorScheme.onSecondary,
               ),
             ),
           ),
