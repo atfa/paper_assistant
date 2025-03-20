@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'text_splitter.dart';
 
 class TextSplitterDemo extends StatefulWidget {
-  const TextSplitterDemo({Key? key}) : super(key: key);
+  const TextSplitterDemo({super.key});
 
   @override
   State<TextSplitterDemo> createState() => _TextSplitterDemoState();

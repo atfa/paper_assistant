@@ -192,16 +192,16 @@ class HomeController extends GetxController {
     String formattedText = text;
 
     // 确定是复制哪一列的内容
-    if (text == sourceText.value && sourceSentenceControllers.length > 0) {
+    if (text == sourceText.value && sourceSentenceControllers.isNotEmpty) {
       // 复制源文本列，处理段落
       formattedText = _formatCopyText(sourceSentenceControllers.map((controller) => controller.text).toList());
-    } else if (text == translatedText.value && translatedSentenceControllers.length > 0) {
+    } else if (text == translatedText.value && translatedSentenceControllers.isNotEmpty) {
       // 复制翻译列，处理段落
       formattedText = _formatCopyText(translatedSentenceControllers.map((controller) => controller.text).toList());
-    } else if (text == polishedText.value && polishedSentences.length > 0) {
+    } else if (text == polishedText.value && polishedSentences.isNotEmpty) {
       // 复制润色列，处理段落
       formattedText = _formatCopyText(polishedSentences.toList());
-    } else if (text == polishedTranslation.value && polishedTranslationSentences.length > 0) {
+    } else if (text == polishedTranslation.value && polishedTranslationSentences.isNotEmpty) {
       // 复制润色翻译列，处理段落
       formattedText = _formatCopyText(polishedTranslationSentences.toList());
     }
@@ -234,7 +234,7 @@ class HomeController extends GetxController {
         if (currentParagraph.isEmpty) {
           currentParagraph = sentence;
         } else {
-          currentParagraph += ' ' + sentence;
+          currentParagraph += ' $sentence';
         }
       }
     }
@@ -331,6 +331,7 @@ $textToPolish
     }
   }
 
+  // 修改文本切分方法，处理连续多个换行符的情况
   void _splitSourceText() {
     if (sourceText.value.isEmpty) {
       // 即使是空文本，也确保有一个空句子框
@@ -344,7 +345,9 @@ $textToPolish
     }
 
     // 首先处理换行符，将文本分成段落
-    List<String> paragraphs = sourceText.value.split('\n');
+    // 将连续的多个换行符替换为单个换行符
+    String normalizedText = sourceText.value.replaceAll(RegExp(r'\n{2,}'), '\n');
+    List<String> paragraphs = normalizedText.split('\n');
     List<String> allItems = [];
 
     // 遍历段落并添加分隔符
@@ -374,6 +377,16 @@ $textToPolish
     }
     while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
       allItems.removeLast();
+    }
+
+    // 合并连续的段落分隔符
+    int i = 0;
+    while (i < allItems.length - 1) {
+      if (allItems[i] == '###NEW_PARAGRAPH###' && allItems[i + 1] == '###NEW_PARAGRAPH###') {
+        allItems.removeAt(i);
+      } else {
+        i++;
+      }
     }
 
     // 确保列表不为空
@@ -399,6 +412,7 @@ $textToPolish
     }
   }
 
+  // 修改翻译文本切分方法
   void splitTranslatedText() {
     if (translatedText.value.isEmpty) {
       translatedSentences.clear();
@@ -411,7 +425,9 @@ $textToPolish
     }
 
     // 首先处理换行符，将文本分成段落
-    List<String> paragraphs = translatedText.value.split('\n');
+    // 将连续的多个换行符替换为单个换行符
+    String normalizedText = translatedText.value.replaceAll(RegExp(r'\n{2,}'), '\n');
+    List<String> paragraphs = normalizedText.split('\n');
     List<String> allItems = [];
 
     // 遍历段落并添加分隔符
@@ -441,6 +457,16 @@ $textToPolish
     }
     while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
       allItems.removeLast();
+    }
+
+    // 合并连续的段落分隔符
+    int i = 0;
+    while (i < allItems.length - 1) {
+      if (allItems[i] == '###NEW_PARAGRAPH###' && allItems[i + 1] == '###NEW_PARAGRAPH###') {
+        allItems.removeAt(i);
+      } else {
+        i++;
+      }
     }
 
     // 确保列表不为空
@@ -547,6 +573,7 @@ $textToPolish
     }
   }
 
+  // 修改润色文本切分方法，处理连续多个换行符的情况
   void splitPolishedText() {
     if (polishedText.value.isEmpty) {
       polishedSentences.clear();
@@ -556,7 +583,9 @@ $textToPolish
     }
 
     // 首先处理换行符，将文本分成段落
-    List<String> paragraphs = polishedText.value.split('\n');
+    // 将连续的多个换行符替换为单个换行符
+    String normalizedText = polishedText.value.replaceAll(RegExp(r'\n{2,}'), '\n');
+    List<String> paragraphs = normalizedText.split('\n');
     List<String> allItems = [];
 
     // 遍历段落并添加分隔符
@@ -586,6 +615,16 @@ $textToPolish
     }
     while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
       allItems.removeLast();
+    }
+
+    // 合并连续的段落分隔符
+    int i = 0;
+    while (i < allItems.length - 1) {
+      if (allItems[i] == '###NEW_PARAGRAPH###' && allItems[i + 1] == '###NEW_PARAGRAPH###') {
+        allItems.removeAt(i);
+      } else {
+        i++;
+      }
     }
 
     // 确保列表不为空
@@ -596,6 +635,7 @@ $textToPolish
     polishedSentences.value = allItems;
   }
 
+  // 修改润色翻译文本切分方法，处理连续多个换行符的情况
   void splitPolishedTranslationText() {
     if (polishedTranslation.value.isEmpty) {
       polishedTranslationSentences.clear();
@@ -605,7 +645,9 @@ $textToPolish
     }
 
     // 首先处理换行符，将文本分成段落
-    List<String> paragraphs = polishedTranslation.value.split('\n');
+    // 将连续的多个换行符替换为单个换行符
+    String normalizedText = polishedTranslation.value.replaceAll(RegExp(r'\n{2,}'), '\n');
+    List<String> paragraphs = normalizedText.split('\n');
     List<String> allItems = [];
 
     // 遍历段落并添加分隔符
@@ -635,6 +677,16 @@ $textToPolish
     }
     while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
       allItems.removeLast();
+    }
+
+    // 合并连续的段落分隔符
+    int i = 0;
+    while (i < allItems.length - 1) {
+      if (allItems[i] == '###NEW_PARAGRAPH###' && allItems[i + 1] == '###NEW_PARAGRAPH###') {
+        allItems.removeAt(i);
+      } else {
+        i++;
+      }
     }
 
     // 确保列表不为空
@@ -691,10 +743,11 @@ $textToPolish
     });
   }
 
-  // 将句子列表转换为完整文本，处理段落分隔符
+  // 将句子列表转换为完整文本，更好地处理段落分隔符
   String _convertSentencesToFullText(List<String> sentences) {
     List<String> paragraphs = [];
     String currentParagraph = '';
+    bool lastWasParagraphBreak = false;
 
     for (String sentence in sentences) {
       if (sentence == '###NEW_PARAGRAPH###') {
@@ -702,17 +755,20 @@ $textToPolish
         if (currentParagraph.isNotEmpty) {
           paragraphs.add(currentParagraph);
           currentParagraph = '';
-        } else {
-          // 连续的段落分隔符，添加空段落
+          lastWasParagraphBreak = true;
+        } else if (!lastWasParagraphBreak) {
+          // 防止连续的段落分隔符添加多个空段落
           paragraphs.add('');
+          lastWasParagraphBreak = true;
         }
       } else if (sentence.trim().isNotEmpty) {
         // 普通句子，添加到当前段落
         if (currentParagraph.isEmpty) {
           currentParagraph = sentence;
         } else {
-          currentParagraph += currentParagraph.endsWith('\n') ? sentence : ' ' + sentence;
+          currentParagraph += currentParagraph.endsWith('\n') ? sentence : ' $sentence';
         }
+        lastWasParagraphBreak = false;
       }
     }
 

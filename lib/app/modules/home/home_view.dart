@@ -17,6 +17,7 @@ class HomeView extends GetView<HomeController> {
 
     return Scaffold(
       appBar: AppBar(
+        // backgroundColor: Colors.grey[200],
         title: const Text('Paper Assistant'),
         actions: [
           IconButton(
@@ -203,7 +204,7 @@ class HomeView extends GetView<HomeController> {
                             ),
                             // 下半部分：中文翻译
                             Expanded(
-                              child: Container(
+                              child: SizedBox(
                                 width: double.infinity,
                                 child: _buildPolishedTranslationSentencesList(context),
                               ),
@@ -219,23 +220,6 @@ class HomeView extends GetView<HomeController> {
           ),
         ),
       ),
-    );
-  }
-
-  // 完整文本输入区域 - 首次加载时显示
-  Widget _buildFullTextInput(BuildContext context) {
-    return TextField(
-      maxLines: null,
-      expands: true,
-      textAlignVertical: TextAlignVertical.top,
-      controller: controller.sourceController,
-      style: Theme.of(context).textTheme.bodyLarge,
-      decoration: const InputDecoration(
-        hintText: '请输入原文...',
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.all(16),
-      ),
-      onChanged: (value) => controller.sourceText.value = value,
     );
   }
 

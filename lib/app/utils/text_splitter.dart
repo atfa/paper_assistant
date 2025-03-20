@@ -41,12 +41,20 @@ class TextSplitter {
     'Blvd.',
   ];
 
+  /// 常见英文序号格式的正则表达式模式
+  static final RegExp _numberingPattern = RegExp(r'(?:^|\s)(?:'
+      r'[0-9]+\.|' // 数字序号 1. 2. 3.
+      r'[a-z]\.|' // 小写字母序号 a. b. c.
+      r'[A-Z]\.|' // 大写字母序号 A. B. C.
+      r'[ivxlcdmIVXLCDM]+\.' // 罗马数字序号 i. ii. iii. IV. V.
+      r')\s+');
+
   /// 中文文本切分
   /// 按照句号、问号、叹号、分号进行切分
   static List<String> splitChineseText(String text) {
     if (text.isEmpty) return [];
 
-    final RegExp pattern = RegExp(r'[。！？；]');
+    final RegExp pattern = RegExp(r'[。！？]');
     final List<String> sentences = text.split(pattern).where((s) => s.trim().isNotEmpty).map((s) => s.trim()).toList();
 
     return sentences;
@@ -115,9 +123,9 @@ class TextSplitter {
     final List<String> sentences = [];
 
     // 改进正则表达式，更精确匹配中文句子结尾的标点符号
-    // 句号(。)、问号(？)、叹号(！)、分号(；)作为句子结束标记
+    // 句号(。)、问号(？)、叹号(！)作为句子结束标记
     // 不以顿号(、)、逗号(，)、冒号(:)、省略号(…)等作为句子分隔
-    final RegExp pattern = RegExp(r'([^。！？；]*[。！？；])');
+    final RegExp pattern = RegExp(r'([^。！？]*[。！？])');
 
     // 处理带引号的情况
     String processedText = text
@@ -161,6 +169,11 @@ class TextSplitter {
     for (String abbr in _commonAbbreviations) {
       processedText = processedText.replaceAll(abbr, abbr.replaceAll('.', '@DOT@'));
     }
+
+    // 处理序号格式（如 "1. ", "a. ", "IV. " 等），避免被错误分割
+    processedText = processedText.replaceAllMapped(_numberingPattern, (match) {
+      return match.group(0)!.replaceAll('.', '@DOT@');
+    });
 
     // 使用改进的正则表达式匹配完整句子（包括结尾标点）
     // 匹配模式：
