@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/resizable_column.dart';
 import '../../routes/app_pages.dart';
 import 'home_controller.dart';
+import 'package:flutter/services.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -245,6 +246,13 @@ class HomeView extends GetView<HomeController> {
           itemCount: controller.sourceSentenceControllers.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
+            final text = controller.sourceSentenceControllers[index].text;
+
+            // 处理段落分隔符
+            if (text == '###NEW_PARAGRAPH###') {
+              return _buildParagraphDivider(context);
+            }
+
             return _buildSentenceInput(
               context,
               controller.sourceSentenceControllers[index],
@@ -265,6 +273,13 @@ class HomeView extends GetView<HomeController> {
           itemCount: controller.translatedSentenceControllers.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
+            final text = controller.translatedSentenceControllers[index].text;
+
+            // 处理段落分隔符
+            if (text == '###NEW_PARAGRAPH###') {
+              return _buildParagraphDivider(context);
+            }
+
             return _buildSentenceInput(
               context,
               controller.translatedSentenceControllers[index],
@@ -285,9 +300,16 @@ class HomeView extends GetView<HomeController> {
           itemCount: controller.polishedSentences.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
+            final text = controller.polishedSentences[index];
+
+            // 处理段落分隔符
+            if (text == '###NEW_PARAGRAPH###') {
+              return _buildParagraphDivider(context);
+            }
+
             return _buildSentenceDisplay(
               context,
-              controller.polishedSentences[index],
+              text,
               index,
             );
           },
@@ -301,13 +323,57 @@ class HomeView extends GetView<HomeController> {
           itemCount: controller.polishedTranslationSentences.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
+            final text = controller.polishedTranslationSentences[index];
+
+            // 处理段落分隔符
+            if (text == '###NEW_PARAGRAPH###') {
+              return _buildParagraphDivider(context);
+            }
+
             return _buildSentenceDisplay(
               context,
-              controller.polishedTranslationSentences[index],
+              text,
               index,
             );
           },
         ));
+  }
+
+  // 段落分隔符部件
+  Widget _buildParagraphDivider(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Divider(
+                  color: Theme.of(context).dividerColor,
+                  thickness: 1,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  '新段落',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Divider(
+                  color: Theme.of(context).dividerColor,
+                  thickness: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   // 句子输入组件
@@ -320,60 +386,68 @@ class HomeView extends GetView<HomeController> {
     return Stack(
       children: [
         Container(
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.5),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(7),
-                    topRight: Radius.circular(7),
-                  ),
-                ),
-                child: Text(
-                  '句子 ${index + 1}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              TextField(
-                controller: textController,
-                maxLines: null,
-                minLines: 2,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(12),
-                ),
-                style: Theme.of(context).textTheme.bodyMedium,
-                onChanged: onChanged,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
+          child: RawKeyboardListener(
+            focusNode: FocusNode(),
+            onKey: (RawKeyEvent event) {
+              // 监听回车键事件
+              if (event is RawKeyDownEvent) {
+                if (event.logicalKey == LogicalKeyboardKey.enter) {
+                  bool isSource = controller.sourceSentenceControllers.contains(textController);
+                  controller.handleEnterKeyPressed(index, isSource);
+                }
+              }
+            },
+            child: TextField(
+              controller: textController,
+              maxLines: null,
+              decoration: InputDecoration(
+                hintText: '输入文本...',
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(4),
+              ),
+              onChanged: onChanged,
+              // 不要设置onEditingComplete，让RawKeyboardListener处理回车键
+              // 设置文本输入动作
+              textInputAction: TextInputAction.done,
+            ),
+          ),
         ),
-        // 添加删除按钮，位于右上角
+        // 句子删除按钮
         Positioned(
           top: 0,
           right: 0,
-          child: IconButton(
-            icon: const Icon(Icons.clear, size: 18),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: () {
-              // 根据列表类型调用清空方法
-              if (controller.sourceSentenceControllers.contains(textController)) {
-                controller.clearSentenceInput(index, true);
-              } else {
-                controller.clearSentenceInput(index, false);
-              }
+          child: InkWell(
+            onTap: () {
+              bool isSource = controller.sourceSentenceControllers.contains(textController);
+              controller.clearSentenceInput(index, isSource);
             },
-            tooltip: '清空此句子',
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error.withOpacity(0.8),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomLeft: Radius.circular(8),
+                ),
+              ),
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: Theme.of(context).colorScheme.onError,
+              ),
+            ),
           ),
         ),
       ],

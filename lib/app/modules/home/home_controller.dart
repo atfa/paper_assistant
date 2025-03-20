@@ -187,12 +187,65 @@ class HomeController extends GetxController {
 
   Future<void> copyToClipboard(String text) async {
     if (text.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: text));
+
+    // 修改：优化复制内容的格式
+    String formattedText = text;
+
+    // 确定是复制哪一列的内容
+    if (text == sourceText.value && sourceSentenceControllers.length > 0) {
+      // 复制源文本列，处理段落
+      formattedText = _formatCopyText(sourceSentenceControllers.map((controller) => controller.text).toList());
+    } else if (text == translatedText.value && translatedSentenceControllers.length > 0) {
+      // 复制翻译列，处理段落
+      formattedText = _formatCopyText(translatedSentenceControllers.map((controller) => controller.text).toList());
+    } else if (text == polishedText.value && polishedSentences.length > 0) {
+      // 复制润色列，处理段落
+      formattedText = _formatCopyText(polishedSentences.toList());
+    } else if (text == polishedTranslation.value && polishedTranslationSentences.length > 0) {
+      // 复制润色翻译列，处理段落
+      formattedText = _formatCopyText(polishedTranslationSentences.toList());
+    }
+
+    await Clipboard.setData(ClipboardData(text: formattedText));
     Get.snackbar(
       '已复制',
       '文本已复制到剪贴板',
       snackPosition: SnackPosition.BOTTOM,
     );
+  }
+
+  // 格式化文本用于复制，处理段落分隔符
+  String _formatCopyText(List<String> sentences) {
+    List<String> paragraphs = [];
+    String currentParagraph = '';
+
+    for (String sentence in sentences) {
+      if (sentence.trim().isEmpty) {
+        // 空句子，跳过
+        continue;
+      } else if (sentence == '###NEW_PARAGRAPH###') {
+        // 段落分隔符，保存当前段落并开始新段落
+        if (currentParagraph.isNotEmpty) {
+          paragraphs.add(currentParagraph);
+          currentParagraph = '';
+        }
+      } else {
+        // 普通句子，添加到当前段落
+        if (currentParagraph.isEmpty) {
+          currentParagraph = sentence;
+        } else {
+          currentParagraph += ' ' + sentence;
+        }
+      }
+    }
+
+    // 添加最后一个段落
+    if (currentParagraph.isNotEmpty) {
+      paragraphs.add(currentParagraph);
+    }
+
+    // 用换行符连接段落
+    return paragraphs.join('\n\n');
   }
 
   Future<void> polishText() async {
@@ -290,35 +343,59 @@ $textToPolish
       return;
     }
 
-    // 使用保留标点的方式切分文本
-    final sentences = TextSplitter.smartSplitPreservePunctuation(sourceText.value);
-    print('原文切分后的句子数量: ${sentences.length}');
+    // 首先处理换行符，将文本分成段落
+    List<String> paragraphs = sourceText.value.split('\n');
+    List<String> allItems = [];
 
-    // 如果句子数量与当前控制器数量相同，检查每个句子是否需要更新
-    if (sentences.length == sourceSentenceControllers.length) {
-      bool hasChanged = false;
-      for (int i = 0; i < sentences.length; i++) {
-        if (sourceSentenceControllers[i].text != sentences[i]) {
-          sourceSentenceControllers[i].text = sentences[i];
-          hasChanged = true;
+    // 遍历段落并添加分隔符
+    for (int i = 0; i < paragraphs.length; i++) {
+      String paragraph = paragraphs[i].trim();
+      if (paragraph.isEmpty) {
+        // 忽略空段落，但仍添加分隔符
+        if (i > 0 && i < paragraphs.length - 1 && allItems.isNotEmpty) {
+          allItems.add('###NEW_PARAGRAPH###');
         }
+        continue;
       }
 
-      // 如果没有变化，不需要进一步处理
-      if (!hasChanged) {
-        return;
+      // 切分段落中的句子
+      List<String> sentences = TextSplitter.smartSplitPreservePunctuation(paragraph);
+      allItems.addAll(sentences);
+
+      // 在非最后一个段落后添加段落分隔符
+      if (i < paragraphs.length - 1) {
+        allItems.add('###NEW_PARAGRAPH###');
       }
-    } else {
-      // 如果句子数量不同，完全重建控制器
-      _rebuildSentenceControllers(sentences, true);
     }
 
-    sourceSentences.value = sentences;
+    // 移除首尾的空分隔符
+    while (allItems.isNotEmpty && allItems.first == '###NEW_PARAGRAPH###') {
+      allItems.removeAt(0);
+    }
+    while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
+      allItems.removeLast();
+    }
+
+    // 确保列表不为空
+    if (allItems.isEmpty) {
+      allItems.add('');
+    }
+
+    print('原文切分后的项目数量: ${allItems.length}');
+
+    // 重建控制器
+    _rebuildSentenceControllers(allItems, true);
+    sourceSentences.value = allItems;
 
     // 如果翻译句子数量与源文本句子数量不一致，则重新分割翻译文本
     if (translatedSentenceControllers.isNotEmpty &&
         translatedSentenceControllers.length != sourceSentenceControllers.length) {
       _reSplitTranslatedText();
+    }
+
+    // 在切分完成后，触发翻译功能
+    if (sourceText.value.isNotEmpty) {
+      _translateText(sourceText.value);
     }
   }
 
@@ -333,30 +410,49 @@ $textToPolish
       return;
     }
 
-    // 使用保留标点的方式切分文本
-    final sentences = TextSplitter.smartSplitPreservePunctuation(translatedText.value);
-    print('翻译切分后的句子数量: ${sentences.length}');
+    // 首先处理换行符，将文本分成段落
+    List<String> paragraphs = translatedText.value.split('\n');
+    List<String> allItems = [];
 
-    // 如果句子数量与当前控制器数量相同，检查每个句子是否需要更新
-    if (sentences.length == translatedSentenceControllers.length) {
-      bool hasChanged = false;
-      for (int i = 0; i < sentences.length; i++) {
-        if (translatedSentenceControllers[i].text != sentences[i]) {
-          translatedSentenceControllers[i].text = sentences[i];
-          hasChanged = true;
+    // 遍历段落并添加分隔符
+    for (int i = 0; i < paragraphs.length; i++) {
+      String paragraph = paragraphs[i].trim();
+      if (paragraph.isEmpty) {
+        // 忽略空段落，但仍添加分隔符
+        if (i > 0 && i < paragraphs.length - 1 && allItems.isNotEmpty) {
+          allItems.add('###NEW_PARAGRAPH###');
         }
+        continue;
       }
 
-      // 如果没有变化，不需要进一步处理
-      if (!hasChanged) {
-        return;
+      // 切分段落中的句子
+      List<String> sentences = TextSplitter.smartSplitPreservePunctuation(paragraph);
+      allItems.addAll(sentences);
+
+      // 在非最后一个段落后添加段落分隔符
+      if (i < paragraphs.length - 1) {
+        allItems.add('###NEW_PARAGRAPH###');
       }
-    } else {
-      // 如果句子数量不同，完全重建控制器
-      _rebuildSentenceControllers(sentences, false);
     }
 
-    translatedSentences.value = sentences;
+    // 移除首尾的空分隔符
+    while (allItems.isNotEmpty && allItems.first == '###NEW_PARAGRAPH###') {
+      allItems.removeAt(0);
+    }
+    while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
+      allItems.removeLast();
+    }
+
+    // 确保列表不为空
+    if (allItems.isEmpty) {
+      allItems.add('');
+    }
+
+    print('翻译切分后的项目数量: ${allItems.length}');
+
+    // 重建控制器
+    _rebuildSentenceControllers(allItems, false);
+    translatedSentences.value = allItems;
   }
 
   // 重建句子控制器
@@ -459,8 +555,45 @@ $textToPolish
       return;
     }
 
-    // 使用保留标点的方式切分文本
-    polishedSentences.value = TextSplitter.smartSplitPreservePunctuation(polishedText.value);
+    // 首先处理换行符，将文本分成段落
+    List<String> paragraphs = polishedText.value.split('\n');
+    List<String> allItems = [];
+
+    // 遍历段落并添加分隔符
+    for (int i = 0; i < paragraphs.length; i++) {
+      String paragraph = paragraphs[i].trim();
+      if (paragraph.isEmpty) {
+        // 忽略空段落，但仍添加分隔符
+        if (i > 0 && i < paragraphs.length - 1 && allItems.isNotEmpty) {
+          allItems.add('###NEW_PARAGRAPH###');
+        }
+        continue;
+      }
+
+      // 切分段落中的句子
+      List<String> sentences = TextSplitter.smartSplitPreservePunctuation(paragraph);
+      allItems.addAll(sentences);
+
+      // 在非最后一个段落后添加段落分隔符
+      if (i < paragraphs.length - 1) {
+        allItems.add('###NEW_PARAGRAPH###');
+      }
+    }
+
+    // 移除首尾的空分隔符
+    while (allItems.isNotEmpty && allItems.first == '###NEW_PARAGRAPH###') {
+      allItems.removeAt(0);
+    }
+    while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
+      allItems.removeLast();
+    }
+
+    // 确保列表不为空
+    if (allItems.isEmpty) {
+      allItems.add('');
+    }
+
+    polishedSentences.value = allItems;
   }
 
   void splitPolishedTranslationText() {
@@ -471,15 +604,52 @@ $textToPolish
       return;
     }
 
-    // 使用保留标点的方式切分文本
-    polishedTranslationSentences.value = TextSplitter.smartSplitPreservePunctuation(polishedTranslation.value);
+    // 首先处理换行符，将文本分成段落
+    List<String> paragraphs = polishedTranslation.value.split('\n');
+    List<String> allItems = [];
+
+    // 遍历段落并添加分隔符
+    for (int i = 0; i < paragraphs.length; i++) {
+      String paragraph = paragraphs[i].trim();
+      if (paragraph.isEmpty) {
+        // 忽略空段落，但仍添加分隔符
+        if (i > 0 && i < paragraphs.length - 1 && allItems.isNotEmpty) {
+          allItems.add('###NEW_PARAGRAPH###');
+        }
+        continue;
+      }
+
+      // 切分段落中的句子
+      List<String> sentences = TextSplitter.smartSplitPreservePunctuation(paragraph);
+      allItems.addAll(sentences);
+
+      // 在非最后一个段落后添加段落分隔符
+      if (i < paragraphs.length - 1) {
+        allItems.add('###NEW_PARAGRAPH###');
+      }
+    }
+
+    // 移除首尾的空分隔符
+    while (allItems.isNotEmpty && allItems.first == '###NEW_PARAGRAPH###') {
+      allItems.removeAt(0);
+    }
+    while (allItems.isNotEmpty && allItems.last == '###NEW_PARAGRAPH###') {
+      allItems.removeLast();
+    }
+
+    // 确保列表不为空
+    if (allItems.isEmpty) {
+      allItems.add('');
+    }
+
+    polishedTranslationSentences.value = allItems;
   }
 
   void updateSourceTextFromSentences() {
     // 获取每个句子框的内容
     final texts = sourceSentenceControllers.map((controller) => controller.text).toList();
 
-    // 合并相邻的不含有句号的句子
+    // 合并相邻的不含有句号的句子（忽略段落分隔符）
     final mergedTexts = _mergeSentencesWithoutPunctuation(texts);
 
     // 如果合并后句子数量变化，重新创建控制器
@@ -488,8 +658,8 @@ $textToPolish
       sourceSentences.value = mergedTexts;
     }
 
-    // 更新完整文本
-    sourceText.value = sourceSentenceControllers.map((c) => c.text).join('\n');
+    // 更新完整文本，段落分隔符转换为换行符
+    sourceText.value = _convertSentencesToFullText(sourceSentenceControllers.map((c) => c.text).toList());
 
     // 句子修改后，延迟500毫秒自动重新切分
     _autoSplitTimer?.cancel();
@@ -502,7 +672,7 @@ $textToPolish
     // 获取每个句子框的内容
     final texts = translatedSentenceControllers.map((controller) => controller.text).toList();
 
-    // 合并相邻的不含有句号的句子
+    // 合并相邻的不含有句号的句子（忽略段落分隔符）
     final mergedTexts = _mergeSentencesWithoutPunctuation(texts);
 
     // 如果合并后句子数量变化，重新创建控制器
@@ -511,8 +681,8 @@ $textToPolish
       translatedSentences.value = mergedTexts;
     }
 
-    // 更新完整文本
-    translatedText.value = translatedSentenceControllers.map((c) => c.text).join('\n');
+    // 更新完整文本，段落分隔符转换为换行符
+    translatedText.value = _convertSentencesToFullText(translatedSentenceControllers.map((c) => c.text).toList());
 
     // 句子修改后，延迟500毫秒自动重新切分
     _autoSplitTimer?.cancel();
@@ -521,7 +691,41 @@ $textToPolish
     });
   }
 
-  // 合并相邻的不含有句号的句子
+  // 将句子列表转换为完整文本，处理段落分隔符
+  String _convertSentencesToFullText(List<String> sentences) {
+    List<String> paragraphs = [];
+    String currentParagraph = '';
+
+    for (String sentence in sentences) {
+      if (sentence == '###NEW_PARAGRAPH###') {
+        // 段落分隔符，保存当前段落并开始新段落
+        if (currentParagraph.isNotEmpty) {
+          paragraphs.add(currentParagraph);
+          currentParagraph = '';
+        } else {
+          // 连续的段落分隔符，添加空段落
+          paragraphs.add('');
+        }
+      } else if (sentence.trim().isNotEmpty) {
+        // 普通句子，添加到当前段落
+        if (currentParagraph.isEmpty) {
+          currentParagraph = sentence;
+        } else {
+          currentParagraph += currentParagraph.endsWith('\n') ? sentence : ' ' + sentence;
+        }
+      }
+    }
+
+    // 添加最后一个段落
+    if (currentParagraph.isNotEmpty) {
+      paragraphs.add(currentParagraph);
+    }
+
+    // 用换行符连接段落
+    return paragraphs.join('\n');
+  }
+
+  // 修改合并相邻句子的方法，忽略段落分隔符
   List<String> _mergeSentencesWithoutPunctuation(List<String> sentences) {
     if (sentences.length <= 1) {
       return sentences;
@@ -531,6 +735,13 @@ $textToPolish
     String current = sentences[0];
 
     for (int i = 1; i < sentences.length; i++) {
+      // 如果是段落分隔符，保留并重置当前句子
+      if (sentences[i] == '###NEW_PARAGRAPH###' || current == '###NEW_PARAGRAPH###') {
+        result.add(current);
+        current = sentences[i];
+        continue;
+      }
+
       // 检查当前句子是否以标点符号结束
       bool endsWithPunctuation = _endsWithPunctuation(current);
 
@@ -545,7 +756,7 @@ $textToPolish
     }
 
     // 添加最后一个句子
-    if (current.isNotEmpty) {
+    if (current.isNotEmpty || current == '###NEW_PARAGRAPH###') {
       result.add(current);
     }
 
@@ -634,6 +845,142 @@ $textToPolish
       if (index >= 0 && index < translatedSentenceControllers.length) {
         translatedSentenceControllers[index].clear();
         // 更新翻译文本
+        updateTranslatedTextFromSentences();
+      }
+    }
+  }
+
+  /// 处理在输入框中按下回车键创建新段落
+  void handleEnterKeyPressed(int index, bool isSource) {
+    if (isSource) {
+      // 处理源文本输入框中的回车
+      if (index >= 0 && index < sourceSentenceControllers.length) {
+        // 获取当前文本
+        String currentText = sourceSentenceControllers[index].text;
+
+        // 获取光标位置
+        TextEditingController controller = sourceSentenceControllers[index];
+        int cursorPosition = controller.selection.baseOffset;
+
+        // 如果光标位置无效，则在末尾添加段落分隔符
+        if (cursorPosition < 0 || cursorPosition >= currentText.length) {
+          // 在当前句子后面添加段落分隔符
+          _insertParagraphBreak(index, isSource);
+          return;
+        }
+
+        // 分割文本
+        String beforeCursor = currentText.substring(0, cursorPosition);
+        String afterCursor = currentText.substring(cursorPosition);
+
+        // 更新当前句子内容为光标前的文本
+        sourceSentenceControllers[index].text = beforeCursor;
+
+        // 在当前位置插入段落分隔符
+        List<String> newSentences = List.from(sourceSentences);
+        List<TextEditingController> newControllers = List.from(sourceSentenceControllers);
+
+        // 在当前句子后添加段落分隔符
+        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
+        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
+
+        // 如果光标后还有文本，则在段落分隔符后创建新句子
+        if (afterCursor.isNotEmpty) {
+          newSentences.insert(index + 2, afterCursor);
+          newControllers.insert(index + 2, TextEditingController(text: afterCursor));
+        }
+
+        // 更新列表
+        sourceSentences.value = newSentences;
+        sourceSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateSourceTextFromSentences();
+      }
+    } else {
+      // 处理翻译文本输入框中的回车
+      if (index >= 0 && index < translatedSentenceControllers.length) {
+        // 获取当前文本
+        String currentText = translatedSentenceControllers[index].text;
+
+        // 获取光标位置
+        TextEditingController controller = translatedSentenceControllers[index];
+        int cursorPosition = controller.selection.baseOffset;
+
+        // 如果光标位置无效，则在末尾添加段落分隔符
+        if (cursorPosition < 0 || cursorPosition >= currentText.length) {
+          // 在当前句子后面添加段落分隔符
+          _insertParagraphBreak(index, isSource);
+          return;
+        }
+
+        // 分割文本
+        String beforeCursor = currentText.substring(0, cursorPosition);
+        String afterCursor = currentText.substring(cursorPosition);
+
+        // 更新当前句子内容为光标前的文本
+        translatedSentenceControllers[index].text = beforeCursor;
+
+        // 在当前位置插入段落分隔符
+        List<String> newSentences = List.from(translatedSentences);
+        List<TextEditingController> newControllers = List.from(translatedSentenceControllers);
+
+        // 在当前句子后添加段落分隔符
+        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
+        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
+
+        // 如果光标后还有文本，则在段落分隔符后创建新句子
+        if (afterCursor.isNotEmpty) {
+          newSentences.insert(index + 2, afterCursor);
+          newControllers.insert(index + 2, TextEditingController(text: afterCursor));
+        }
+
+        // 更新列表
+        translatedSentences.value = newSentences;
+        translatedSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateTranslatedTextFromSentences();
+      }
+    }
+  }
+
+  /// 在指定位置后插入段落分隔符
+  void _insertParagraphBreak(int index, bool isSource) {
+    if (isSource) {
+      // 在源文本中插入段落分隔符
+      if (index >= 0 && index < sourceSentenceControllers.length) {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(sourceSentences);
+        List<TextEditingController> newControllers = List.from(sourceSentenceControllers);
+
+        // 插入段落分隔符
+        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
+        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
+
+        // 更新列表
+        sourceSentences.value = newSentences;
+        sourceSentenceControllers.value = newControllers;
+
+        // 更新完整文本
+        updateSourceTextFromSentences();
+      }
+    } else {
+      // 在翻译文本中插入段落分隔符
+      if (index >= 0 && index < translatedSentenceControllers.length) {
+        // 创建新的句子列表和控制器列表
+        List<String> newSentences = List.from(translatedSentences);
+        List<TextEditingController> newControllers = List.from(translatedSentenceControllers);
+
+        // 插入段落分隔符
+        newSentences.insert(index + 1, '###NEW_PARAGRAPH###');
+        newControllers.insert(index + 1, TextEditingController(text: '###NEW_PARAGRAPH###'));
+
+        // 更新列表
+        translatedSentences.value = newSentences;
+        translatedSentenceControllers.value = newControllers;
+
+        // 更新完整文本
         updateTranslatedTextFromSentences();
       }
     }
