@@ -106,4 +106,118 @@ class TextSplitter {
     // 如果中文字符占比超过30%，则认为是主要为中文的文本
     return chineseCharCount / text.length > 0.3;
   }
+
+  /// 中文文本切分（保留标点符号）
+  /// 按照句号、问号、叹号、分号进行切分，保留标点符号
+  static List<String> splitChineseTextPreservePunctuation(String text) {
+    if (text.isEmpty) return [];
+
+    final List<String> sentences = [];
+
+    // 改进正则表达式，更精确匹配中文句子结尾的标点符号
+    // 句号(。)、问号(？)、叹号(！)、分号(；)作为句子结束标记
+    // 不以顿号(、)、逗号(，)、冒号(:)、省略号(…)等作为句子分隔
+    final RegExp pattern = RegExp(r'([^。！？；]*[。！？；])');
+
+    // 处理带引号的情况
+    String processedText = text
+        .replaceAll('"', '')
+        .replaceAll('"', '')
+        .replaceAll('「', '')
+        .replaceAll('」', '')
+        .replaceAll('"', '')
+        .replaceAll('"', '');
+
+    // 查找所有以标点结尾的句子
+    final Iterable<Match> matches = pattern.allMatches(processedText);
+    for (final Match match in matches) {
+      final String sentence = match.group(1)!.trim();
+      if (sentence.isNotEmpty) {
+        sentences.add(sentence);
+      }
+    }
+
+    // 处理最后一段没有标点的文本
+    final String lastPart = processedText.split(pattern).where((s) => s.isNotEmpty).join('').trim();
+    if (lastPart.isNotEmpty) {
+      sentences.add(lastPart);
+    }
+
+    // 如果切分结果为空，则返回原文本作为一个句子
+    if (sentences.isEmpty && text.trim().isNotEmpty) {
+      return [text.trim()];
+    }
+
+    return sentences;
+  }
+
+  /// 英文文本切分（保留标点符号）
+  /// 考虑缩写词中的句点，避免错误切分，同时保留句尾标点
+  static List<String> splitEnglishTextPreservePunctuation(String text) {
+    if (text.isEmpty) return [];
+
+    // 先处理常见的缩写词，将其中的句点替换为特殊标记
+    String processedText = text;
+    for (String abbr in _commonAbbreviations) {
+      processedText = processedText.replaceAll(abbr, abbr.replaceAll('.', '@DOT@'));
+    }
+
+    // 使用改进的正则表达式匹配完整句子（包括结尾标点）
+    // 匹配模式：
+    // 1. 以句点/问号/感叹号结尾，后接空格和大写字母的句子
+    // 2. 或者文本末尾的任何内容
+    final RegExp sentencePattern = RegExp(r'(.*?[.!?])\s+(?=[A-Z])|(.+$)');
+    final List<String> sentences = [];
+
+    // 查找所有匹配
+    final Iterable<Match> matches = sentencePattern.allMatches(processedText);
+    for (final Match match in matches) {
+      final String? sentence = match.group(1) ?? match.group(2);
+      if (sentence != null && sentence.trim().isNotEmpty) {
+        sentences.add(sentence.trim());
+      }
+    }
+
+    // 如果没有找到任何句子，将整个文本作为一个句子返回
+    if (sentences.isEmpty && text.trim().isNotEmpty) {
+      return [text.trim()];
+    }
+
+    // 将特殊标记还原为句点
+    return sentences.map((s) => s.replaceAll('@DOT@', '.')).toList();
+  }
+
+  /// 智能切分文本（保留标点符号）
+  /// 自动检测文本主要语言并使用相应的切分方法，保留标点符号
+  static List<String> smartSplitPreservePunctuation(String text) {
+    if (text.isEmpty) return [];
+
+    // 简单判断文本主要语言
+    bool isMainlyChinese = _isMainlyChinese(text);
+
+    // 处理内容含有换行符的情况
+    if (text.contains('\n')) {
+      // 先按换行符分割
+      List<String> lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+      List<String> result = [];
+
+      // 对每一行按语言再次切分
+      for (String line in lines) {
+        if (isMainlyChinese) {
+          result.addAll(splitChineseTextPreservePunctuation(line));
+        } else {
+          result.addAll(splitEnglishTextPreservePunctuation(line));
+        }
+      }
+
+      return result;
+    }
+
+    // 无换行符情况下的处理
+    if (isMainlyChinese) {
+      return splitChineseTextPreservePunctuation(text);
+    } else {
+      return splitEnglishTextPreservePunctuation(text);
+    }
+  }
 }

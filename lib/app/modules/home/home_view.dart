@@ -24,6 +24,31 @@ class HomeView extends GetView<HomeController> {
             tooltip: '重置布局',
           ),
           IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: () {
+              Get.dialog(
+                AlertDialog(
+                  title: const Text('确认清空'),
+                  content: const Text('确定要清空所有内容吗？此操作不可恢复。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Get.back();
+                        controller.clearAllContent();
+                      },
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            tooltip: '清空所有内容',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => Get.toNamed(Routes.SETTINGS),
           ),
@@ -64,9 +89,7 @@ class HomeView extends GetView<HomeController> {
                             () => controller.copyToClipboard(controller.sourceText.value),
                           ),
                           Expanded(
-                            child: Obx(() => controller.sourceSentenceControllers.isEmpty
-                                ? _buildFullTextInput(context)
-                                : _buildSourceSentencesList(context)),
+                            child: _buildSourceSentencesList(context),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -132,24 +155,7 @@ class HomeView extends GetView<HomeController> {
                             isTranslationColumn: true,
                           ),
                           Expanded(
-                            child: Obx(() => controller.translatedSentenceControllers.isEmpty
-                                ? TextField(
-                                    maxLines: null,
-                                    expands: true,
-                                    textAlignVertical: TextAlignVertical.top,
-                                    controller: controller.translatedController,
-                                    style: Theme.of(context).textTheme.bodyLarge,
-                                    decoration: const InputDecoration(
-                                      hintText: '翻译结果...',
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.all(16),
-                                    ),
-                                    onChanged: (value) {
-                                      controller.translatedText.value = value;
-                                      controller.splitTranslatedText();
-                                    },
-                                  )
-                                : _buildTranslatedSentencesList(context)),
+                            child: _buildTranslatedSentencesList(context),
                           ),
                         ],
                       ),
@@ -191,36 +197,14 @@ class HomeView extends GetView<HomeController> {
                                     ),
                                   ),
                                 ),
-                                child: Obx(() => controller.polishedSentences.isEmpty
-                                    ? Container(
-                                        padding: const EdgeInsets.all(16),
-                                        alignment: Alignment.topLeft,
-                                        child: SelectableText(
-                                          controller.polishedText.value.isEmpty
-                                              ? '润色结果将在这里显示...'
-                                              : controller.polishedText.value,
-                                          style: Theme.of(context).textTheme.bodyLarge,
-                                        ),
-                                      )
-                                    : _buildPolishedSentencesList(context)),
+                                child: _buildPolishedSentencesList(context),
                               ),
                             ),
                             // 下半部分：中文翻译
                             Expanded(
                               child: Container(
                                 width: double.infinity,
-                                child: Obx(() => controller.polishedTranslationSentences.isEmpty
-                                    ? Container(
-                                        padding: const EdgeInsets.all(16),
-                                        alignment: Alignment.topLeft,
-                                        child: SelectableText(
-                                          controller.polishedTranslation.value.isEmpty
-                                              ? '中文翻译将在这里显示...'
-                                              : controller.polishedTranslation.value,
-                                          style: Theme.of(context).textTheme.bodyLarge,
-                                        ),
-                                      )
-                                    : _buildPolishedTranslationSentencesList(context)),
+                                child: _buildPolishedTranslationSentencesList(context),
                               ),
                             ),
                           ],
@@ -256,74 +240,74 @@ class HomeView extends GetView<HomeController> {
 
   // 原文句子列表
   Widget _buildSourceSentencesList(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.sourceSentenceControllers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _buildSentenceInput(
-          context,
-          controller.sourceSentenceControllers[index],
-          index,
-          (value) {
-            controller.sourceSentenceControllers[index].text = value;
-            controller.updateSourceTextFromSentences();
+    return Obx(() => ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: controller.sourceSentenceControllers.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _buildSentenceInput(
+              context,
+              controller.sourceSentenceControllers[index],
+              index,
+              (value) {
+                controller.sourceSentenceControllers[index].text = value;
+                controller.updateSourceTextFromSentences();
+              },
+            );
           },
-        );
-      },
-    );
+        ));
   }
 
   // 翻译句子列表
   Widget _buildTranslatedSentencesList(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.translatedSentenceControllers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _buildSentenceInput(
-          context,
-          controller.translatedSentenceControllers[index],
-          index,
-          (value) {
-            controller.translatedSentenceControllers[index].text = value;
-            controller.updateTranslatedTextFromSentences();
+    return Obx(() => ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: controller.translatedSentenceControllers.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _buildSentenceInput(
+              context,
+              controller.translatedSentenceControllers[index],
+              index,
+              (value) {
+                controller.translatedSentenceControllers[index].text = value;
+                controller.updateTranslatedTextFromSentences();
+              },
+            );
           },
-        );
-      },
-    );
+        ));
   }
 
   // 润色句子列表
   Widget _buildPolishedSentencesList(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.polishedSentences.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _buildSentenceDisplay(
-          context,
-          controller.polishedSentences[index],
-          index,
-        );
-      },
-    );
+    return Obx(() => ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: controller.polishedSentences.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _buildSentenceDisplay(
+              context,
+              controller.polishedSentences[index],
+              index,
+            );
+          },
+        ));
   }
 
   // 润色翻译句子列表
   Widget _buildPolishedTranslationSentencesList(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: controller.polishedTranslationSentences.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _buildSentenceDisplay(
-          context,
-          controller.polishedTranslationSentences[index],
-          index,
-        );
-      },
-    );
+    return Obx(() => ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: controller.polishedTranslationSentences.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _buildSentenceDisplay(
+              context,
+              controller.polishedTranslationSentences[index],
+              index,
+            );
+          },
+        ));
   }
 
   // 句子输入组件
@@ -333,43 +317,66 @@ class HomeView extends GetView<HomeController> {
     int index,
     Function(String) onChanged,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(7),
-                topRight: Radius.circular(7),
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(7),
+                    topRight: Radius.circular(7),
+                  ),
+                ),
+                child: Text(
+                  '句子 ${index + 1}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
-            ),
-            child: Text(
-              '句子 ${index + 1}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+              TextField(
+                controller: textController,
+                maxLines: null,
+                minLines: 2,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(12),
+                ),
+                style: Theme.of(context).textTheme.bodyMedium,
+                onChanged: onChanged,
+              ),
+            ],
           ),
-          TextField(
-            controller: textController,
-            maxLines: null,
-            minLines: 2,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(12),
-            ),
-            style: Theme.of(context).textTheme.bodyMedium,
-            onChanged: onChanged,
+        ),
+        // 添加删除按钮，位于右上角
+        Positioned(
+          top: 0,
+          right: 0,
+          child: IconButton(
+            icon: const Icon(Icons.clear, size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              // 根据列表类型调用清空方法
+              if (controller.sourceSentenceControllers.contains(textController)) {
+                controller.clearSentenceInput(index, true);
+              } else {
+                controller.clearSentenceInput(index, false);
+              }
+            },
+            tooltip: '清空此句子',
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
