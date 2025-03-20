@@ -422,7 +422,7 @@ class HomeView extends GetView<HomeController> {
                   ),
                 ),
                 child: Text(
-                  '句子 ${index + 1}',
+                  '句子 ${_getActualSentenceNumber(controller.sourceSentenceControllers.contains(textController) ? controller.sourceSentenceControllers : controller.translatedSentenceControllers, index)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -601,5 +601,15 @@ class HomeView extends GetView<HomeController> {
         ],
       ),
     );
+  }
+
+  // 计算实际句子编号（排除段落分隔符）
+  int _getActualSentenceNumber(List<TextEditingController> controllers, int currentIndex) {
+    return controllers.sublist(0, currentIndex + 1).where((c) => c.text != '###NEW_PARAGRAPH###').length;
+  }
+
+  // 计算显示组件的实际句子编号（排除段落分隔符）
+  int _getActualSentenceNumberForDisplay(List<String> sentences, int currentIndex) {
+    return sentences.sublist(0, currentIndex + 1).where((s) => s != '###NEW_PARAGRAPH###').length;
   }
 }
