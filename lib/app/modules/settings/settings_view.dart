@@ -99,7 +99,11 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : null,
+                              : IconButton(
+                                  icon: const Icon(Icons.check_circle_outline),
+                                  tooltip: '验证 API Key',
+                                  onPressed: () => _showValidationDialog(context),
+                                ),
                         ),
                         if (controller.googleKeyStatus.value != null)
                           Padding(
@@ -442,5 +446,90 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
       items: items,
       onChanged: onChanged,
     );
+  }
+
+  // Add this method to show the validation dialog
+  Future<void> _showValidationDialog(BuildContext context) async {
+    // Show dialog with loading state first
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('验证 Google API Key'),
+        content: const SizedBox(
+          height: 100,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('正在验证...')],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    // Perform validation and get steps
+    List<String> steps = await controller.validateGoogleKeyWithSteps();
+
+    // Close the loading dialog
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+
+    // Show result dialog with steps
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('验证结果'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var step in steps)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(step),
+                  ),
+                const SizedBox(height: 8),
+                if (controller.googleKeyStatus.value != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: controller.googleKeyStatus.value!.isValid
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: controller.googleKeyStatus.value!.isValid ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    child: Text(
+                      controller.googleKeyStatus.value!.message,
+                      style: TextStyle(
+                        color: controller.googleKeyStatus.value!.isValid ? Colors.green.shade800 : Colors.red.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

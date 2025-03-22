@@ -48,9 +48,7 @@ class SettingsController extends GetxController {
 
   Future<void> setGoogleKey(String key) async {
     await _translationService.setGoogleKey(key);
-    if (key.isNotEmpty) {
-      await validateGoogleKey();
-    } else {
+    if (key.isEmpty) {
       googleKeyStatus.value = null;
     }
   }
@@ -79,6 +77,51 @@ class SettingsController extends GetxController {
     } finally {
       isTestingGoogleKey.value = false;
     }
+  }
+
+  Future<List<String>> validateGoogleKeyWithSteps() async {
+    List<String> steps = [];
+
+    steps.add('开始验证 Google Translate API Key...');
+
+    if (googleKey.isEmpty) {
+      steps.add('❌ API Key 为空，请先设置 API Key');
+      return steps;
+    }
+
+    isTestingGoogleKey.value = true;
+    googleKeyStatus.value = null;
+
+    steps.add('正在初始化翻译服务...');
+
+    try {
+      steps.add('尝试翻译测试文本 "Hello" 从英文到中文...');
+
+      await _translationService.translate(
+        text: 'Hello',
+        source: 'en',
+        target: 'zh',
+      );
+
+      steps.add('✅ 翻译成功，API Key 有效');
+
+      googleKeyStatus.value = ValidationStatus(
+        isValid: true,
+        message: 'Google Translate API Key 验证成功',
+      );
+    } catch (e) {
+      steps.add('❌ 翻译失败: ${e.toString()}');
+
+      googleKeyStatus.value = ValidationStatus(
+        isValid: false,
+        message: 'Google Translate API Key 无效: ${e.toString()}',
+      );
+    } finally {
+      steps.add('验证过程结束');
+      isTestingGoogleKey.value = false;
+    }
+
+    return steps;
   }
 
   Future<void> setAIProvider(AIProvider provider) async {
