@@ -496,39 +496,66 @@ class HomeView extends GetView<HomeController> {
     String text,
     int index,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.5),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(7),
+                    topRight: Radius.circular(7),
+                  ),
+                ),
+                child: Text(
+                  '句子 ${_getActualSentenceNumberFromStrings(index, controller.polishedSentences.contains(text) ? controller.polishedSentences : controller.polishedTranslationSentences)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: SelectableText(
+                  text,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(7),
-                topRight: Radius.circular(7),
+        // 复制按钮
+        Positioned(
+          top: 0,
+          right: 0,
+          child: InkWell(
+            onTap: () => controller.copyToClipboard(text),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomLeft: Radius.circular(8),
+                ),
+              ),
+              child: Icon(
+                Icons.copy,
+                size: 14,
+                color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
-            child: Text(
-              '句子 ${index + 1}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SelectableText(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -609,5 +636,10 @@ class HomeView extends GetView<HomeController> {
   // 计算实际句子编号（排除段落分隔符）
   int _getActualSentenceNumber(List<TextEditingController> controllers, int currentIndex) {
     return controllers.sublist(0, currentIndex + 1).where((c) => c.text != '###NEW_PARAGRAPH###').length;
+  }
+
+  // 从字符串列表中计算实际句子编号（排除段落分隔符）
+  int _getActualSentenceNumberFromStrings(int currentIndex, List<String> sentences) {
+    return sentences.sublist(0, currentIndex + 1).where((text) => text != '###NEW_PARAGRAPH###').length;
   }
 }
