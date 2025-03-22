@@ -24,6 +24,9 @@ class AIService extends GetxService {
   final _availableModels = <String>[].obs;
   final _dio = Dio();
 
+  // 代理服务器设置
+  String? _proxyUrl;
+
   AIProvider get provider => _provider.value;
   String get apiKey => _apiKey.value;
   String get baseUrl => _baseUrl.value;
@@ -44,9 +47,9 @@ class AIService extends GetxService {
 
   void _configureDio() {
     _dio.options = BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      sendTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 30),
       validateStatus: (status) => status != null && status < 500,
     );
 
@@ -55,15 +58,26 @@ class AIService extends GetxService {
       // 允许自签名证书
       client.badCertificateCallback = (cert, host, port) => true;
 
-      // 在开发环境中配置代理
-      if (const bool.fromEnvironment('dart.vm.product') == false) {
-        print('Development environment detected, configuring proxy...');
+      // 配置代理服务器（优先使用用户配置）
+      if (_proxyUrl != null && _proxyUrl!.isNotEmpty) {
+        // 提取出干净的代理地址（移除协议前缀）
+        final cleanProxyUrl = _proxyUrl!.replaceAll(RegExp(r'^https?://'), '');
+        print('Using clean proxy: $cleanProxyUrl');
+        client.findProxy = (uri) => 'PROXY $cleanProxyUrl';
+      } else if (const bool.fromEnvironment('dart.vm.product') == false) {
+        // 开发环境中的代理（仅当未配置用户代理时）
+        print('Development environment detected, configuring default dev proxy...');
         client.findProxy = (uri) => 'PROXY 127.0.0.1:7890';
       } else {
-        // 在生产环境中使用系统代理
+        // 在生产环境中使用系统代理（仅当未配置用户代理时）
         final proxy = _getSystemProxy();
         if (proxy != null) {
+          print('Using system proxy: $proxy');
           client.findProxy = (uri) => 'PROXY $proxy';
+        } else {
+          // 没有配置代理
+          print('No proxy configured');
+          client.findProxy = (uri) => 'DIRECT';
         }
       }
 
@@ -76,6 +90,7 @@ class AIService extends GetxService {
         print('Request Headers: ${options.headers}');
         print('Request Method: ${options.method}');
         print('Request Data: ${options.data}');
+        print('Using proxy: ${_proxyUrl ?? "None"}');
 
         if (_apiKey.value.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer ${_apiKey.value}';
@@ -94,6 +109,14 @@ class AIService extends GetxService {
         return handler.next(e);
       },
     ));
+  }
+
+  // 设置代理服务器
+  void setProxy(String? proxyAddress) {
+    _proxyUrl = proxyAddress;
+    print('Proxy set to: ${proxyAddress ?? "None (disabled)"}');
+    // 重新配置Dio
+    _configureDio();
   }
 
   String? _getSystemProxy() {
@@ -292,8 +315,27 @@ class AIService extends GetxService {
     try {
       print('Testing network connection with http package...');
 
-      // 在开发环境中配置代理
-      if (const bool.fromEnvironment('dart.vm.product') == false) {
+      // 优先使用用户配置的代理
+      if (_proxyUrl != null && _proxyUrl!.isNotEmpty) {
+        print('Using custom proxy for HTTP test: $_proxyUrl');
+
+        // 提取出干净的代理地址（移除协议前缀）
+        final cleanProxyUrl = _proxyUrl!.replaceAll(RegExp(r'^https?://'), '');
+        print('Cleaned proxy URL for HttpClient: $cleanProxyUrl');
+
+        final client = HttpClient();
+        client.findProxy = (uri) => 'PROXY $cleanProxyUrl';
+
+        final request = await client.getUrl(
+          Uri.parse('https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png'),
+        );
+        final response = await request.close();
+        final statusCode = response.statusCode;
+
+        print('HTTP Network test response status: $statusCode');
+        return statusCode == 200;
+      } else if (const bool.fromEnvironment('dart.vm.product') == false) {
+        // 在开发环境中配置代理
         print('Development environment detected, configuring proxy...');
         final client = HttpClient();
         client.findProxy = (uri) => 'PROXY 127.0.0.1:7890';

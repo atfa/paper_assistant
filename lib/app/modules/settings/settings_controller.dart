@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/translation_service.dart';
 import '../../services/ai_service.dart';
 
@@ -12,10 +13,16 @@ class SettingsController extends GetxController {
   final isTestingAIKey = false.obs;
   final googleKeyStatus = Rx<ValidationStatus?>(null);
   final aiKeyStatus = Rx<ValidationStatus?>(null);
-  final isTestingNetwork = false.obs;
-  final networkTestResult = ''.obs;
-  final isTestingNetworkWithHttp = false.obs;
-  final networkTestResultWithHttp = ''.obs;
+
+  // 代理服务器设置
+  final proxyEnabled = false.obs;
+  final proxyServer = ''.obs;
+  final proxyPort = ''.obs;
+
+  // 代理相关的常量
+  static const String _proxyEnabledKey = 'proxy_enabled';
+  static const String _proxyServerKey = 'proxy_server';
+  static const String _proxyPortKey = 'proxy_port';
 
   String get googleKey => _translationService.googleKey;
   AIProvider get aiProvider => _aiService.provider;
@@ -23,6 +30,26 @@ class SettingsController extends GetxController {
   String get aiBaseUrl => _aiService.baseUrl;
   String get aiModel => _aiService.model;
   List<String> get availableModels => _aiService.availableModels;
+
+  // 返回完整的代理地址
+  String get proxyAddress {
+    if (!proxyEnabled.value || proxyServer.value.isEmpty) {
+      return '';
+    }
+
+    final port = proxyPort.value.isNotEmpty ? ':${proxyPort.value}' : '';
+    return 'http://${proxyServer.value}$port';
+  }
+
+  // 返回没有协议的代理地址 (用于HttpClient)
+  String get proxyAddressWithoutProtocol {
+    if (!proxyEnabled.value || proxyServer.value.isEmpty) {
+      return '';
+    }
+
+    final port = proxyPort.value.isNotEmpty ? ':${proxyPort.value}' : '';
+    return '${proxyServer.value}$port';
+  }
 
   @override
   void onInit() {
@@ -33,8 +60,111 @@ class SettingsController extends GetxController {
   Future<void> _loadSettings() async {
     modelFilter.value = '';
     filteredModels.value = availableModels;
-    await validateGoogleKey();
-    await validateAIKey();
+
+    // 加载代理服务器设置
+    await _loadProxySettings();
+
+    // 应用代理设置
+    _applyProxySettings();
+  }
+
+  // 加载代理服务器设置
+  Future<void> _loadProxySettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    proxyEnabled.value = prefs.getBool(_proxyEnabledKey) ?? false;
+    proxyServer.value = prefs.getString(_proxyServerKey) ?? '';
+
+    // 修复类型不匹配问题：端口可能以整数或字符串形式存储
+    try {
+      // 尝试作为字符串读取
+      final portStr = prefs.getString(_proxyPortKey);
+      if (portStr != null) {
+        proxyPort.value = portStr;
+      } else {
+        // 尝试作为整数读取并转换为字符串
+        final portInt = prefs.getInt(_proxyPortKey);
+        proxyPort.value = portInt?.toString() ?? '';
+      }
+    } catch (e) {
+      print('Error loading proxy port: $e');
+      proxyPort.value = '';
+    }
+  }
+
+  // 应用代理服务器设置到全局
+  void _applyProxySettings() {
+    if (proxyEnabled.value && proxyServer.value.isNotEmpty) {
+      // 应用代理设置到 Dio (所有使用 Dio 的服务)
+      _aiService.setProxy(proxyAddress);
+      _translationService.setProxy(proxyAddress);
+
+      print('应用代理设置: $proxyAddress');
+    } else {
+      // 清除代理设置
+      _aiService.setProxy(null);
+      _translationService.setProxy(null);
+
+      print('清除代理设置');
+    }
+  }
+
+  // 设置代理服务器状态
+  Future<void> setProxyEnabled(bool enabled) async {
+    proxyEnabled.value = enabled;
+
+    // 直接保存启用状态
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_proxyEnabledKey, enabled);
+
+    _applyProxySettings();
+  }
+
+  // 设置代理服务器地址
+  Future<void> setProxyServer(String server) async {
+    proxyServer.value = server.trim();
+
+    // 直接保存服务器地址
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_proxyServerKey, proxyServer.value);
+
+    if (proxyEnabled.value) {
+      _applyProxySettings();
+    }
+  }
+
+  // 设置代理服务器端口
+  Future<void> setProxyPort(String port) async {
+    // 确保端口是有效的数字
+    if (port.isNotEmpty) {
+      try {
+        final portNum = int.parse(port);
+        if (portNum < 0 || portNum > 65535) {
+          Get.snackbar(
+            '无效端口',
+            '端口号必须在 0-65535 范围内',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
+      } catch (e) {
+        Get.snackbar(
+          '无效端口',
+          '请输入有效的数字',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+    }
+
+    proxyPort.value = port;
+
+    // 始终将端口作为字符串保存
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_proxyPortKey, port);
+
+    if (proxyEnabled.value) {
+      _applyProxySettings();
+    }
   }
 
   void updateFilteredModels() {
@@ -127,16 +257,11 @@ class SettingsController extends GetxController {
   Future<void> setAIProvider(AIProvider provider) async {
     await _aiService.setProvider(provider);
     aiKeyStatus.value = null;
-    if (aiKey.isNotEmpty) {
-      await validateAIKey();
-    }
   }
 
   Future<void> setAIKey(String key) async {
     await _aiService.setApiKey(key);
-    if (key.isNotEmpty) {
-      await validateAIKey();
-    } else {
+    if (key.isEmpty) {
       aiKeyStatus.value = null;
     }
   }
@@ -173,9 +298,6 @@ class SettingsController extends GetxController {
   Future<void> setAIBaseUrl(String url) async {
     await _aiService.setBaseUrl(url);
     aiKeyStatus.value = null;
-    if (aiKey.isNotEmpty) {
-      await validateAIKey();
-    }
   }
 
   Future<void> setAIModel(String model) async {
@@ -187,70 +309,19 @@ class SettingsController extends GetxController {
     updateFilteredModels();
   }
 
-  Future<void> testNetworkConnection() async {
-    isTestingNetwork.value = true;
-    networkTestResult.value = '';
-
-    try {
-      final result = await _aiService.testNetworkConnection();
-      if (result) {
-        networkTestResult.value = '网络连接正常';
-        Get.snackbar(
-          '网络测试',
-          '网络连接正常',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      } else {
-        networkTestResult.value = '网络连接失败';
-        Get.snackbar(
-          '网络测试',
-          '网络连接失败，请检查网络设置',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-    } catch (e) {
-      networkTestResult.value = '网络测试出错: $e';
+  // 添加一个刷新模型列表的方法，供用户手动触发
+  Future<void> refreshModels() async {
+    if (aiKey.isEmpty) {
       Get.snackbar(
-        '网络测试',
-        '网络测试出错: $e',
+        '提示',
+        'API Key 为空，请先设置 API Key',
         snackPosition: SnackPosition.BOTTOM,
       );
-    } finally {
-      isTestingNetwork.value = false;
+      return;
     }
-  }
 
-  Future<void> testNetworkConnectionWithHttp() async {
-    isTestingNetworkWithHttp.value = true;
-    networkTestResultWithHttp.value = '';
-
-    try {
-      final result = await _aiService.testNetworkConnectionWithHttp();
-      if (result) {
-        networkTestResultWithHttp.value = '网络连接正常';
-        Get.snackbar(
-          '网络测试 (HTTP)',
-          '网络连接正常',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      } else {
-        networkTestResultWithHttp.value = '网络连接失败';
-        Get.snackbar(
-          '网络测试 (HTTP)',
-          '网络连接失败，请检查网络设置',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-    } catch (e) {
-      networkTestResultWithHttp.value = '网络测试出错: $e';
-      Get.snackbar(
-        '网络测试 (HTTP)',
-        '网络测试出错: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
-      isTestingNetworkWithHttp.value = false;
-    }
+    // 验证 API Key 并刷新模型列表
+    await validateAIKey();
   }
 }
 

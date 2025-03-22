@@ -26,31 +26,6 @@ class HomeView extends GetView<HomeController> {
             tooltip: '重置布局',
           ),
           IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: () {
-              Get.dialog(
-                AlertDialog(
-                  title: const Text('确认清空'),
-                  content: const Text('确定要清空所有内容吗？此操作不可恢复。'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(),
-                      child: const Text('取消'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Get.back();
-                        controller.clearAllContent();
-                      },
-                      child: const Text('确定'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            tooltip: '清空所有内容',
-          ),
-          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => Get.toNamed(Routes.SETTINGS),
           ),
@@ -89,6 +64,7 @@ class HomeView extends GetView<HomeController> {
                             context,
                             const Text('输入原文'),
                             () => controller.copyToClipboard(controller.sourceText.value),
+                            isFirstColumn: true,
                           ),
                           Expanded(
                             child: _buildSourceSentencesList(context),
@@ -557,7 +533,7 @@ class HomeView extends GetView<HomeController> {
   }
 
   Widget _buildColumnHeader(BuildContext context, Widget title, VoidCallback onCopy,
-      {bool isTranslationColumn = false}) {
+      {bool isTranslationColumn = false, bool isFirstColumn = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -573,6 +549,33 @@ class HomeView extends GetView<HomeController> {
           title,
           Row(
             children: [
+              // 清空所有内容按钮 - 只在第一列显示
+              if (isFirstColumn)
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep),
+                  onPressed: () {
+                    Get.dialog(
+                      AlertDialog(
+                        title: const Text('确认清空'),
+                        content: const Text('确定要清空所有内容吗？此操作不可恢复。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Get.back(),
+                            child: const Text('取消'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Get.back();
+                              controller.clearAllContent();
+                            },
+                            child: const Text('确定'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  tooltip: '清空所有内容',
+                ),
               // 润色按钮 - 只在第二列显示
               if (isTranslationColumn)
                 Obx(() => IconButton(
@@ -606,10 +609,5 @@ class HomeView extends GetView<HomeController> {
   // 计算实际句子编号（排除段落分隔符）
   int _getActualSentenceNumber(List<TextEditingController> controllers, int currentIndex) {
     return controllers.sublist(0, currentIndex + 1).where((c) => c.text != '###NEW_PARAGRAPH###').length;
-  }
-
-  // 计算显示组件的实际句子编号（排除段落分隔符）
-  int _getActualSentenceNumberForDisplay(List<String> sentences, int currentIndex) {
-    return sentences.sublist(0, currentIndex + 1).where((s) => s != '###NEW_PARAGRAPH###').length;
   }
 }

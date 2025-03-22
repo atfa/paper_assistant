@@ -45,6 +45,9 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
     _getOrCreateController('AI API Key', controller.aiKey);
     _getOrCreateController('Base URL', controller.aiBaseUrl);
     _getOrCreateController('Model Filter', '');
+    // 初始化代理服务器的控制器
+    _getOrCreateController('Proxy Server', controller.proxyServer.value);
+    _getOrCreateController('Proxy Port', controller.proxyPort.value);
   }
 
   TextEditingController _getOrCreateController(String key, String initialValue) {
@@ -201,7 +204,11 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : null,
+                              : IconButton(
+                                  icon: const Icon(Icons.refresh),
+                                  tooltip: '验证并刷新模型列表',
+                                  onPressed: controller.refreshModels,
+                                ),
                         ),
                         if (controller.aiKeyStatus.value != null)
                           Padding(
@@ -267,91 +274,50 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
               ],
             ),
             const SizedBox(height: 32),
-            // Network testing section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '网络测试',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Dio test
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Obx(() => Text(
-                                controller.networkTestResult.value.isEmpty
-                                    ? '点击按钮测试网络连接 (Dio)'
-                                    : controller.networkTestResult.value,
-                                style: TextStyle(
-                                  color: controller.networkTestResult.value.contains('正常')
-                                      ? Colors.green
-                                      : controller.networkTestResult.value.contains('失败')
-                                          ? Colors.red
-                                          : Colors.orange,
-                                ),
-                              )),
+            // 代理服务器设置
+            _buildSection(
+              context,
+              title: '代理服务器设置',
+              children: [
+                Obx(() => SwitchListTile(
+                      title: const Text('启用代理服务器'),
+                      value: controller.proxyEnabled.value,
+                      onChanged: (value) => controller.setProxyEnabled(value),
+                      activeColor: Theme.of(context).colorScheme.primary,
+                    )),
+                const SizedBox(height: 16),
+                Obx(() => _buildTextField(
+                      label: '代理服务器',
+                      hint: '输入代理服务器地址 (例如: 127.0.0.1)',
+                      controllerKey: 'Proxy Server',
+                      initialValue: controller.proxyServer.value,
+                      onChanged: controller.setProxyServer,
+                      enabled: controller.proxyEnabled.value,
+                    )),
+                const SizedBox(height: 16),
+                Obx(() => _buildTextField(
+                      label: '代理端口',
+                      hint: '输入代理端口 (例如: 7890)',
+                      controllerKey: 'Proxy Port',
+                      initialValue: controller.proxyPort.value,
+                      onChanged: controller.setProxyPort,
+                      enabled: controller.proxyEnabled.value,
+                      keyboardType: TextInputType.number,
+                    )),
+                const SizedBox(height: 8),
+                Obx(() => controller.proxyEnabled.value && controller.proxyServer.value.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          '当前代理: ${controller.proxyAddress}',
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey,
+                          ),
                         ),
-                        const SizedBox(width: 16),
-                        Obx(() => ElevatedButton(
-                              onPressed: controller.isTestingNetwork.value ? null : controller.testNetworkConnection,
-                              child: controller.isTestingNetwork.value
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('测试网络 (Dio)'),
-                            )),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // HTTP test
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Obx(() => Text(
-                                controller.networkTestResultWithHttp.value.isEmpty
-                                    ? '点击按钮测试网络连接 (HTTP)'
-                                    : controller.networkTestResultWithHttp.value,
-                                style: TextStyle(
-                                  color: controller.networkTestResultWithHttp.value.contains('正常')
-                                      ? Colors.green
-                                      : controller.networkTestResultWithHttp.value.contains('失败')
-                                          ? Colors.red
-                                          : Colors.orange,
-                                ),
-                              )),
-                        ),
-                        const SizedBox(width: 16),
-                        Obx(() => ElevatedButton(
-                              onPressed: controller.isTestingNetworkWithHttp.value
-                                  ? null
-                                  : controller.testNetworkConnectionWithHttp,
-                              child: controller.isTestingNetworkWithHttp.value
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('测试网络 (HTTP)'),
-                            )),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                      )
+                    : const SizedBox()),
+              ],
             ),
           ],
         ),
@@ -400,6 +366,8 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
     required String initialValue,
     required ValueChanged<String> onChanged,
     Widget? suffix,
+    bool enabled = true,
+    TextInputType? keyboardType,
   }) {
     // Get or create controller with initial value
     final controller = _getOrCreateController(controllerKey, initialValue);
@@ -411,8 +379,10 @@ class _SettingsViewContentState extends State<_SettingsViewContent> {
         border: const OutlineInputBorder(),
         floatingLabelBehavior: FloatingLabelBehavior.always,
         suffixIcon: suffix,
+        enabled: enabled,
       ),
       controller: controller,
+      keyboardType: keyboardType,
       onChanged: (text) {
         // Save the current selection before calling onChanged
         final currentSelection = controller.selection;
