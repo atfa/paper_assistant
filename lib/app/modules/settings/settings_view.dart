@@ -8,6 +8,63 @@ class SettingsView extends GetView<SettingsController> {
 
   @override
   Widget build(BuildContext context) {
+    return _SettingsViewContent();
+  }
+}
+
+class _SettingsViewContent extends StatefulWidget {
+  @override
+  _SettingsViewContentState createState() => _SettingsViewContentState();
+}
+
+class _SettingsViewContentState extends State<_SettingsViewContent> {
+  final SettingsController controller = Get.find<SettingsController>();
+
+  // Store TextEditingControllers for each field
+  final Map<String, TextEditingController> _controllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with initial values
+    _initControllers();
+  }
+
+  @override
+  void dispose() {
+    // Dispose all controllers
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _initControllers() {
+    // Initialize controllers for API keys and other fields
+    _getOrCreateController('Google API Key', controller.googleKey);
+    _getOrCreateController('AI API Key', controller.aiKey);
+    _getOrCreateController('Base URL', controller.aiBaseUrl);
+    _getOrCreateController('Model Filter', '');
+  }
+
+  TextEditingController _getOrCreateController(String key, String initialValue) {
+    if (!_controllers.containsKey(key)) {
+      _controllers[key] = TextEditingController(text: initialValue);
+    } else if (_controllers[key]!.text != initialValue) {
+      // If value changed from outside, update controller but preserve selection
+      final selection = _controllers[key]!.selection;
+      _controllers[key]!.text = initialValue;
+
+      // Try to restore cursor position if possible
+      if (selection.baseOffset >= 0 && selection.baseOffset <= initialValue.length) {
+        _controllers[key]!.selection = selection;
+      }
+    }
+    return _controllers[key]!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('设置'),
@@ -31,7 +88,8 @@ class SettingsView extends GetView<SettingsController> {
                         _buildTextField(
                           label: 'API Key',
                           hint: '请输入 Google Translate API Key',
-                          value: controller.googleKey,
+                          controllerKey: 'Google API Key',
+                          initialValue: controller.googleKey,
                           onChanged: controller.setGoogleKey,
                           suffix: controller.isTestingGoogleKey.value
                               ? const SizedBox(
@@ -114,7 +172,8 @@ class SettingsView extends GetView<SettingsController> {
                           _buildTextField(
                             label: 'Base URL',
                             hint: '请输入自定义 API 地址',
-                            value: controller.aiBaseUrl,
+                            controllerKey: 'Base URL',
+                            initialValue: controller.aiBaseUrl,
                             onChanged: controller.setAIBaseUrl,
                           ),
                           const SizedBox(height: 16),
@@ -127,7 +186,8 @@ class SettingsView extends GetView<SettingsController> {
                         _buildTextField(
                           label: 'API Key',
                           hint: '请输入 API Key',
-                          value: controller.aiKey,
+                          controllerKey: 'AI API Key',
+                          initialValue: controller.aiKey,
                           onChanged: controller.setAIKey,
                           suffix: controller.isTestingAIKey.value
                               ? const SizedBox(
@@ -155,6 +215,8 @@ class SettingsView extends GetView<SettingsController> {
                 _buildTextField(
                   label: '模型搜索',
                   hint: '输入关键字过滤模型',
+                  controllerKey: 'Model Filter',
+                  initialValue: controller.modelFilter.value,
                   onChanged: controller.setModelFilter,
                 ),
                 const SizedBox(height: 16),
@@ -201,7 +263,7 @@ class SettingsView extends GetView<SettingsController> {
               ],
             ),
             const SizedBox(height: 32),
-            // 网络测试部分
+            // Network testing section
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -216,7 +278,7 @@ class SettingsView extends GetView<SettingsController> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Dio 测试
+                    // Dio test
                     Row(
                       children: [
                         Expanded(
@@ -249,7 +311,7 @@ class SettingsView extends GetView<SettingsController> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // HTTP 测试
+                    // HTTP test
                     Row(
                       children: [
                         Expanded(
@@ -330,10 +392,14 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildTextField({
     required String label,
     required String hint,
-    String? value,
+    required String controllerKey,
+    required String initialValue,
     required ValueChanged<String> onChanged,
     Widget? suffix,
   }) {
+    // Get or create controller with initial value
+    final controller = _getOrCreateController(controllerKey, initialValue);
+
     return TextField(
       decoration: InputDecoration(
         labelText: label,
@@ -342,8 +408,21 @@ class SettingsView extends GetView<SettingsController> {
         floatingLabelBehavior: FloatingLabelBehavior.always,
         suffixIcon: suffix,
       ),
-      controller: value != null ? TextEditingController(text: value) : null,
-      onChanged: onChanged,
+      controller: controller,
+      onChanged: (text) {
+        // Save the current selection before calling onChanged
+        final currentSelection = controller.selection;
+
+        // Call the original callback
+        onChanged(text);
+
+        // Restore cursor position after state has been updated
+        Future.microtask(() {
+          if (controller.text == text && currentSelection.start <= text.length) {
+            controller.selection = currentSelection;
+          }
+        });
+      },
     );
   }
 
