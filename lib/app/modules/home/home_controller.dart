@@ -344,6 +344,17 @@ $textToPolish
       return;
     }
 
+    // 保存当前焦点和选择状态
+    int? currentFocusIndex;
+    TextSelection? currentSelection;
+    for (int i = 0; i < sourceSentenceControllers.length; i++) {
+      if (sourceSentenceControllers[i].selection.baseOffset >= 0) {
+        currentFocusIndex = i;
+        currentSelection = sourceSentenceControllers[i].selection;
+        break;
+      }
+    }
+
     // 首先处理换行符，将文本分成段落
     // 将连续的多个换行符替换为单个换行符
     String normalizedText = sourceText.value.replaceAll(RegExp(r'\n{2,}'), '\n');
@@ -400,6 +411,15 @@ $textToPolish
     _rebuildSentenceControllers(allItems, true);
     sourceSentences.value = allItems;
 
+    // 恢复焦点和选择状态
+    if (currentFocusIndex != null && currentSelection != null && currentFocusIndex < sourceSentenceControllers.length) {
+      // 只在文本长度允许的情况下恢复选择
+      final controller = sourceSentenceControllers[currentFocusIndex];
+      if (controller.text.length >= currentSelection.extentOffset) {
+        controller.selection = currentSelection;
+      }
+    }
+
     // 如果翻译句子数量与源文本句子数量不一致，则重新分割翻译文本
     if (translatedSentenceControllers.isNotEmpty &&
         translatedSentenceControllers.length != sourceSentenceControllers.length) {
@@ -422,6 +442,17 @@ $textToPolish
       translatedSentences.add('');
       translatedSentenceControllers.add(TextEditingController());
       return;
+    }
+
+    // 保存当前焦点和选择状态
+    int? currentFocusIndex;
+    TextSelection? currentSelection;
+    for (int i = 0; i < translatedSentenceControllers.length; i++) {
+      if (translatedSentenceControllers[i].selection.baseOffset >= 0) {
+        currentFocusIndex = i;
+        currentSelection = translatedSentenceControllers[i].selection;
+        break;
+      }
     }
 
     // 首先处理换行符，将文本分成段落
@@ -479,6 +510,17 @@ $textToPolish
     // 重建控制器
     _rebuildSentenceControllers(allItems, false);
     translatedSentences.value = allItems;
+
+    // 恢复焦点和选择状态
+    if (currentFocusIndex != null &&
+        currentSelection != null &&
+        currentFocusIndex < translatedSentenceControllers.length) {
+      // 只在文本长度允许的情况下恢复选择
+      final controller = translatedSentenceControllers[currentFocusIndex];
+      if (controller.text.length >= currentSelection.extentOffset) {
+        controller.selection = currentSelection;
+      }
+    }
   }
 
   // 重建句子控制器
@@ -517,6 +559,17 @@ $textToPolish
       translatedSentences.value = List.filled(sourceSentenceControllers.length, '');
       translatedSentenceControllers.value = emptyControllers;
     } else {
+      // 保存当前焦点和选择状态
+      int? currentFocusIndex;
+      TextSelection? currentSelection;
+      for (int i = 0; i < translatedSentenceControllers.length; i++) {
+        if (translatedSentenceControllers[i].selection.baseOffset >= 0) {
+          currentFocusIndex = i;
+          currentSelection = translatedSentenceControllers[i].selection;
+          break;
+        }
+      }
+
       // 尝试根据当前文本重新切分
       splitTranslatedText();
 
@@ -569,6 +622,17 @@ $textToPolish
 
         translatedSentences.value = newSentences;
         translatedSentenceControllers.value = newControllers;
+
+        // 尝试恢复焦点和选择状态
+        if (currentFocusIndex != null &&
+            currentSelection != null &&
+            currentFocusIndex < translatedSentenceControllers.length) {
+          // 只在文本长度允许的情况下恢复选择
+          final controller = translatedSentenceControllers[currentFocusIndex];
+          if (controller.text.length >= currentSelection.extentOffset) {
+            controller.selection = currentSelection;
+          }
+        }
       }
     }
   }
@@ -701,6 +765,17 @@ $textToPolish
     // 获取每个句子框的内容
     final texts = sourceSentenceControllers.map((controller) => controller.text).toList();
 
+    // 保存当前焦点和选择状态
+    int? currentFocusIndex;
+    TextSelection? currentSelection;
+    for (int i = 0; i < sourceSentenceControllers.length; i++) {
+      if (sourceSentenceControllers[i].selection.baseOffset >= 0) {
+        currentFocusIndex = i;
+        currentSelection = sourceSentenceControllers[i].selection;
+        break;
+      }
+    }
+
     // 合并相邻的不含有句号的句子（忽略段落分隔符）
     final mergedTexts = _mergeSentencesWithoutPunctuation(texts);
 
@@ -708,6 +783,17 @@ $textToPolish
     if (mergedTexts.length != texts.length) {
       _rebuildSentenceControllers(mergedTexts, true);
       sourceSentences.value = mergedTexts;
+
+      // 尝试恢复焦点和选择状态
+      if (currentFocusIndex != null &&
+          currentSelection != null &&
+          currentFocusIndex < sourceSentenceControllers.length) {
+        // 只在文本长度允许的情况下恢复选择
+        final controller = sourceSentenceControllers[currentFocusIndex];
+        if (controller.text.length >= currentSelection.extentOffset) {
+          controller.selection = currentSelection;
+        }
+      }
     }
 
     // 更新完整文本，段落分隔符转换为换行符
@@ -724,6 +810,17 @@ $textToPolish
     // 获取每个句子框的内容
     final texts = translatedSentenceControllers.map((controller) => controller.text).toList();
 
+    // 保存当前焦点和选择状态
+    int? currentFocusIndex;
+    TextSelection? currentSelection;
+    for (int i = 0; i < translatedSentenceControllers.length; i++) {
+      if (translatedSentenceControllers[i].selection.baseOffset >= 0) {
+        currentFocusIndex = i;
+        currentSelection = translatedSentenceControllers[i].selection;
+        break;
+      }
+    }
+
     // 合并相邻的不含有句号的句子（忽略段落分隔符）
     final mergedTexts = _mergeSentencesWithoutPunctuation(texts);
 
@@ -731,6 +828,17 @@ $textToPolish
     if (mergedTexts.length != texts.length) {
       _rebuildSentenceControllers(mergedTexts, false);
       translatedSentences.value = mergedTexts;
+
+      // 尝试恢复焦点和选择状态
+      if (currentFocusIndex != null &&
+          currentSelection != null &&
+          currentFocusIndex < translatedSentenceControllers.length) {
+        // 只在文本长度允许的情况下恢复选择
+        final controller = translatedSentenceControllers[currentFocusIndex];
+        if (controller.text.length >= currentSelection.extentOffset) {
+          controller.selection = currentSelection;
+        }
+      }
     }
 
     // 更新完整文本，段落分隔符转换为换行符
@@ -944,6 +1052,12 @@ $textToPolish
         sourceSentences.value = newSentences;
         sourceSentenceControllers.value = newControllers;
 
+        // 设置新句子的光标位置到开头
+        if (index + 1 < sourceSentenceControllers.length) {
+          // 设置焦点到新句子的开头
+          sourceSentenceControllers[index + 1].selection = TextSelection.fromPosition(const TextPosition(offset: 0));
+        }
+
         // 更新完整文本
         updateSourceTextFromSentences();
       }
@@ -983,6 +1097,13 @@ $textToPolish
         translatedSentences.value = newSentences;
         translatedSentenceControllers.value = newControllers;
 
+        // 设置新句子的光标位置到开头
+        if (index + 1 < translatedSentenceControllers.length) {
+          // 设置焦点到新句子的开头
+          translatedSentenceControllers[index + 1].selection =
+              TextSelection.fromPosition(const TextPosition(offset: 0));
+        }
+
         // 更新完整文本
         updateTranslatedTextFromSentences();
       }
@@ -1006,6 +1127,14 @@ $textToPolish
         sourceSentences.value = newSentences;
         sourceSentenceControllers.value = newControllers;
 
+        // 设置新句子的光标位置到开头
+        if (index + 1 < sourceSentenceControllers.length) {
+          // 延迟一下设置焦点，确保UI已经渲染完成
+          Future.delayed(Duration.zero, () {
+            sourceSentenceControllers[index + 1].selection = TextSelection.fromPosition(const TextPosition(offset: 0));
+          });
+        }
+
         // 更新完整文本
         updateSourceTextFromSentences();
       }
@@ -1023,6 +1152,15 @@ $textToPolish
         // 更新列表
         translatedSentences.value = newSentences;
         translatedSentenceControllers.value = newControllers;
+
+        // 设置新句子的光标位置到开头
+        if (index + 1 < translatedSentenceControllers.length) {
+          // 延迟一下设置焦点，确保UI已经渲染完成
+          Future.delayed(Duration.zero, () {
+            translatedSentenceControllers[index + 1].selection =
+                TextSelection.fromPosition(const TextPosition(offset: 0));
+          });
+        }
 
         // 更新完整文本
         updateTranslatedTextFromSentences();
